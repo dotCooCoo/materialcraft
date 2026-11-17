@@ -84,6 +84,7 @@ fn shared_dds_keeps_rgb_transfer_alpha_and_float_range() {
         assert!((converted.data[i] - materialcraft_image::srgb_to_linear(raw.data[i])).abs() < 1e-6);
     }
     assert_eq!(converted.data[3], raw.data[3]);
+
     let mut floats = Vec::new();
     dds::header::Header::new_image(1, 1, dds::Format::R32G32B32A32_FLOAT).write(&mut floats).unwrap();
     for v in [-0.5_f32, 2.0, 0.25, 0.75] {

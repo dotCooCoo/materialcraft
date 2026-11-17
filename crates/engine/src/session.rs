@@ -56,7 +56,7 @@ impl Default for View3d {
             exposure: 0.0,
             height_scale: 0.04,
             height_level: 0.0,
-            normal_y_flip: false,
+            normal_y_flip: true,
             show_axis: false,
             show_grid: false,
             transparency: true,

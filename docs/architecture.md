@@ -12,7 +12,7 @@ L0  core      document model: Package → Graph → Node / Connection / Frame / 
 L0  image     Image: grayscale or RGBA f32 planes behind an Arc (copy-on-write, free to share);
               wrap/clamp sampling, bilinear, box/bilinear resampling, sRGB, 8-bit display
 L0  geom      meshes, primitives (rounded cube, sphere, cylinder, plane, torus, material ball), BVH, camera
-L1  nodes     30 main-graph entries (NodeDefinition), 85 function operations, four pattern node kinds;
+L1  nodes     29 main-graph entries (NodeDefinition), 85 function operations, four pattern node kinds;
               shared image operations and iterative function/pattern execution
 L2  eval      cooking: topological order, output sizes (relative to input / parent, absolute, preview
               cap), parameter resolution (defaults, overrides, bindings to exposed inputs), the

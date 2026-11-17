@@ -9,6 +9,29 @@ fn no_linked_files(_: &str) -> Option<Vec<u8>> {
 }
 
 #[test]
+fn shuffle_roundtrip_preserves_signed_channel_selectors() {
+    for selector in [-2_i32, -1, 8, 9, 16, 255] {
+        let xml = format!(
+            r#"<package><content><graph><identifier v="Original"/><compNodes>
+          <compNode><uid v="1"/><compImplementation><compFilter><filter v="shuffle"/><parameters>
+            <parameter><name v="channelred"/><paramValue><constantValueInt32 v="{selector}"/></paramValue></parameter>
+          </parameters></compFilter></compImplementation></compNode>
+        </compNodes></graph></content></package>"#
+        );
+
+        let loaded = read_sbs(xml.as_bytes(), "original.sbs", &no_linked_files).unwrap();
+        let node = &loaded.pkg.graphs[0].nodes[0];
+
+        assert_eq!(node.params.get("red"), Some(&Value::Enum(selector as u32)), "selector {selector}");
+
+        let saved = write_sbs(&loaded.pkg).unwrap();
+        let reloaded = read_sbs(&saved, "original.sbs", &no_linked_files).unwrap();
+
+        assert_eq!(reloaded.pkg.graphs[0].nodes[0].params.get("red"), node.params.get("red"), "saved selector {selector}");
+    }
+}
+
+#[test]
 fn saved_dot_outputs_load_as_incomplete_functions() {
     let xml = r#"<package><identifier v="Dots"/><content><function><identifier v="Incomplete"/>
       <paramValue><dynamicValue><rootnode v="2"/><paramNodes>

@@ -7,17 +7,18 @@ pub(super) fn definition() -> NodeDefinition {
         .desc("A single color or gray value.")
         .atomic()
         .generator()
-        .color("color", "Color", [0.5, 0.5, 0.5, 1.0])
+        .color("color", "Color", [0.0, 0.0, 0.0, 1.0])
         .boolean("color_mode", "Color output", true)
         .any_out()
         .cook(uniform)
 }
 
 fn uniform(context: &CookContext) -> CookResult {
-    let c = context.v4("color");
+    let color = context.v4("color");
+
     Ok(vec![if !context.b("color_mode") {
-        Image::filled(context.w, context.h, Kind::Gray, [luminance(c); 4])
+        Image::filled(context.w, context.h, Kind::Gray, [luminance(color); 4])
     } else {
-        Image::filled(context.w, context.h, Kind::Color, c)
+        Image::filled(context.w, context.h, Kind::Color, color)
     }])
 }

@@ -178,12 +178,13 @@ The details are in [`docs/control-protocol.md`](docs/control-protocol.md).
 MaterialCraft is under active development. [**ROADMAP.md**](ROADMAP.md) has the parity estimate by
 area, the remaining work and what's next.
 
-**Current focus (2026-11-05):** primitive editing and native SBS save/load. The old Rust
-procedural library has been removed. The replacement includes 30 main-graph entries, 85 function
-operations and three pattern node kinds. Start with **File → New → Atomic sample**.
+**Current focus (2026-11-16):** node behavior, regression coverage and SBS save/load. The old Rust
+procedural library has been removed. The replacement includes 29 main-graph entries, 85 function
+operations and four pattern node kinds. Start with **File → New → Atomic sample**.
 
 See [the primitive workflow](docs/atomic-workflow.md) for usage, validation scope and limitations.
-Reference-app rendering parity and full SBS library loading are still pending.
+The [catalog status](docs/node-catalog-parity.md) records implemented behavior and remaining work.
+Full numerical compatibility and arbitrary SBS interoperability remain unestablished.
 
 **Workspace:** `crates/{core, image, geom, nodes, eval, formats, engine, render, automation, ui-egui}`
 and `apps/{materialcraft, materialcraft-cli, materialcraft-web}`. The egui frontend is its own

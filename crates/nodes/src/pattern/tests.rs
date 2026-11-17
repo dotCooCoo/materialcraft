@@ -8,7 +8,16 @@ fn cook(graph: PatternGraph) -> crate::CookResult {
 
 fn cook_with_variables(graph: PatternGraph, variables: &BTreeMap<String, Value>) -> crate::CookResult {
     let definition = find("fx_map").unwrap();
-    let parameters = resolve_params(definition, &BTreeMap::from([("pattern".into(), Value::PatternGraph(Box::new(graph)))]));
+
+    // These traversal fixtures measure unattenuated grayscale stamps
+    let parameters = resolve_params(
+        definition,
+        &BTreeMap::from([
+            ("pattern".into(), Value::PatternGraph(Box::new(graph))),
+            ("roughness".into(), Value::Float(0.0)),
+            ("color_mode".into(), Value::Bool(false)),
+        ]),
+    );
     let context = CookContext {
         format: materialcraft_core::OutputFormat::F32,
         w: 16,
@@ -214,7 +223,14 @@ fn a_full_nine_level_quadtree_renders_one_pattern_per_pixel() {
     }
     graph.nodes.last_mut().unwrap().parameters.insert("patterntype".into(), Value::Int(2));
     let definition = find("fx_map").unwrap();
-    let parameters = resolve_params(definition, &BTreeMap::from([("pattern".into(), Value::PatternGraph(Box::new(graph)))]));
+    let parameters = resolve_params(
+        definition,
+        &BTreeMap::from([
+            ("pattern".into(), Value::PatternGraph(Box::new(graph))),
+            ("roughness".into(), Value::Float(0.0)),
+            ("color_mode".into(), Value::Bool(false)),
+        ]),
+    );
     let context = CookContext {
         format: materialcraft_core::OutputFormat::F32,
         w: 256,
@@ -322,7 +338,14 @@ fn a_pixel_on_the_seam_of_two_patterns_is_drawn_once() {
     graph.nodes[1].parameters.insert("patterntype".into(), Value::Int(0));
     square(&mut graph, 2);
     let definition = find("fx_map").unwrap();
-    let parameters = resolve_params(definition, &BTreeMap::from([("pattern".into(), Value::PatternGraph(Box::new(graph)))]));
+    let parameters = resolve_params(
+        definition,
+        &BTreeMap::from([
+            ("pattern".into(), Value::PatternGraph(Box::new(graph))),
+            ("roughness".into(), Value::Float(0.0)),
+            ("color_mode".into(), Value::Bool(false)),
+        ]),
+    );
     let variables = BTreeMap::new();
 
     // Two pixels a side put every pixel center on the corner of four of the sixteen squares

@@ -12,7 +12,7 @@ pub(super) fn definition() -> NodeDefinition {
         .float("blue", "Blue weight", 1.0 / 3.0, 0.0, 1.0)
         .float("alpha", "Alpha weight", 0.0, 0.0, 1.0)
         .boolean("flatten_alpha", "Flatten alpha", false)
-        .float("matte", "Matte level", 0.0, 0.0, 1.0)
+        .float("matte", "Matte level", 1.0, 0.0, 1.0)
         .gray_out()
         .cook(grayscale_conversion)
 }

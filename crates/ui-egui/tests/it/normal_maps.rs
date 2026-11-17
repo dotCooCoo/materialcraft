@@ -11,43 +11,48 @@ fn app() -> MaterialCraftApp {
     app
 }
 
-fn settle(h: &mut Harness<'static, MaterialCraftApp>, after: u64) {
-    for _ in 0..300 {
-        h.step();
-        let app = h.state();
+fn settle(harness: &mut Harness<'static, MaterialCraftApp>, after: u64) {
+    const RENDER_ATTEMPTS: usize = 300;
+    const POLL_INTERVAL: Duration = Duration::from_millis(10);
+    for _ in 0..RENDER_ATTEMPTS {
+        harness.step();
+        let app = harness.state();
         if app.view3d.renders > after && !app.session.dirty && !app.cooker.busy() && !app.view3d.busy() {
             return;
         }
-        std::thread::sleep(Duration::from_millis(10));
+
+        std::thread::sleep(POLL_INTERVAL);
     }
     panic!("the normal-map preview did not finish rendering");
 }
 
-fn toggle(h: &mut Harness<'static, MaterialCraftApp>) {
-    h.get_by_label("Display").click();
-    h.run_steps(4);
-    h.get_by_label("Flip normal map Y (DirectX)").click();
-    h.run_steps(4);
+fn toggle(harness: &mut Harness<'static, MaterialCraftApp>) {
+    harness.get_by_label("Display").click();
+    harness.run_steps(4);
+    harness.get_by_label("Flip normal map Y (DirectX)").click();
+    harness.run_steps(4);
 }
 
 #[test]
 #[ignore = "requires an offscreen GPU; run explicitly with --ignored"]
 fn normal_convention_snapshot() {
-    let mut h = Harness::builder().with_size(vec2(1400.0, 860.0)).wgpu().build_ui_state(
+    let mut harness = Harness::builder().with_size(vec2(1400.0, 860.0)).wgpu().build_ui_state(
         |ui, app: &mut MaterialCraftApp| {
             app.step(&ui.ctx().clone());
             app.draw(ui);
         },
         app(),
     );
-    settle(&mut h, 0);
-    let rendered = h.state().view3d.renders;
-    toggle(&mut h);
-    settle(&mut h, rendered);
-    h.get_by_label("Display").click();
-    h.run_steps(4);
-    assert!(h.state().session.view3d.normal_y_flip);
-    let dir = std::path::PathBuf::from(std::env::var_os("MC_SNAPSHOT_DIR").expect("MC_SNAPSHOT_DIR"));
-    std::fs::create_dir_all(&dir).unwrap();
-    h.render().unwrap().save(dir.join("normal-convention.png")).unwrap();
+    settle(&mut harness, 0);
+    let rendered = harness.state().view3d.renders;
+    toggle(&mut harness);
+    settle(&mut harness, rendered);
+    harness.get_by_label("Display").click();
+    harness.run_steps(4);
+
+    assert!(!harness.state().session.view3d.normal_y_flip);
+
+    let snapshot_dir = std::path::PathBuf::from(std::env::var_os("MC_SNAPSHOT_DIR").expect("MC_SNAPSHOT_DIR"));
+    std::fs::create_dir_all(&snapshot_dir).unwrap();
+    harness.render().unwrap().save(snapshot_dir.join("normal-convention.png")).unwrap();
 }

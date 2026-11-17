@@ -31,6 +31,7 @@ pub(super) fn encode_embedded(bytes: &[u8]) -> Result<String> {
     let mut encoder = flate2::write::ZlibEncoder::new(length.to_be_bytes().to_vec(), flate2::Compression::default());
     encoder.write_all(bytes).map_err(|e| FormatError::Io(e.to_string()))?;
     let raw = encoder.finish().map_err(|e| FormatError::Io(e.to_string()))?;
+
     Ok(craft_mime::transfer::base64(&raw))
 }
 
@@ -45,6 +46,7 @@ mod tests {
             let mut encoder = flate2::write::ZlibEncoder::new((len as u32).to_be_bytes().to_vec(), flate2::Compression::default());
             encoder.write_all(&bytes).unwrap();
             let raw = encoder.finish().unwrap();
+
             assert_eq!(encode_embedded(&bytes).unwrap(), base64_engine().encode(&raw));
             assert_eq!(decode_embedded(&encode_embedded(&bytes).unwrap()).unwrap(), bytes);
         }
@@ -54,8 +56,10 @@ mod tests {
     fn strict_decoder_policy_is_not_replaced_by_mime_tolerance() {
         assert!(decode_embedded("!!!!").unwrap_err().starts_with("bad base64:"));
         assert!(decode_embedded("AA").unwrap_err().starts_with("bad base64:"));
+
         let encoded = encode_embedded(b"payload").unwrap();
         let spaced = encoded.chars().map(|c| format!("{c} \n")).collect::<String>();
+
         assert_eq!(decode_embedded(&spaced).unwrap(), b"payload");
     }
 

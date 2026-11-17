@@ -1,5 +1,10 @@
 # Gaps
 
+The [catalog status](node-catalog-parity.md) records implemented corrections and untested
+behavior, including all 954 loaded package function bodies. The
+[atomic corrections](atomic-parity-improvements.md) cover filters, channel selection and
+empty Text/SVG backgrounds. Sampling, precision, processor and map gaps remain open.
+
 > The assessment below predates the 2026-11-05 primitive rewrite. Its old library counts and
 > compatibility claims are historical. See [atomic-workflow.md](atomic-workflow.md) and
 > [ROADMAP.md](../ROADMAP.md) for the current scope and remaining validation.

@@ -247,7 +247,7 @@ impl Default for Settings {
             tiling: 1.0,
             exposure: 0.0,
             env_rotation: 0.0,
-            normal_y_flip: false,
+            normal_y_flip: true,
             show_env: false,
             supersample: 1,
             ao_rays: 0,

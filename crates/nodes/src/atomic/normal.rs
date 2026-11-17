@@ -8,15 +8,17 @@ pub(super) fn definition() -> NodeDefinition {
         .atomic()
         .gray_in("input", "Input")
         .float("intensity", "Intensity", 1.0, 0.0, 10.0)
-        .boolean("opengl", "OpenGL normals", true)
-        .boolean("height_alpha", "Height in alpha", false)
+        .boolean("opengl", "OpenGL normals", false)
+        .boolean("height_alpha", "Height in alpha", true)
         .color_out()
         .cook(normal)
 }
 
 fn normal(context: &CookContext) -> CookResult {
+    const BASE_RESOLUTION: f32 = 256.0;
     let height_map = context.gray_or(0, 0.0);
-    let intensity = context.f("intensity") * context.w as f32 / 256.0;
+    let intensity = context.f("intensity") * context.w as f32 / BASE_RESOLUTION;
+
     Ok(vec![height_to_normal(&height_map, intensity, !context.b("opengl"), context.tile, context.b("height_alpha"))])
 }
 

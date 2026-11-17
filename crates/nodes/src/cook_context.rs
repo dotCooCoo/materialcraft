@@ -19,6 +19,10 @@ pub struct CookContext<'a> {
 }
 
 impl CookContext<'_> {
+    pub fn tiling_axes(&self) -> [bool; 2] {
+        self.vars.get("$tiling").and_then(Value::as_i32).map_or([self.tile; 2], |mask| [mask & 1 != 0, mask & 2 != 0])
+    }
+
     pub fn value(&self, id: &str) -> Option<&Value> {
         self.params.get(id)
     }

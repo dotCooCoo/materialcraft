@@ -10,7 +10,7 @@ pub(super) fn definition() -> NodeDefinition {
         .gray_in("mask", "Mask input")
         .any_in("source", "Source input")
         .float("distance", "Maximum distance", 10.0, 0.0, 256.0)
-        .boolean("combine", "Combine distance with source", false)
+        .boolean("combine", "Combine distance with source", true)
         .any_out()
         .cook(distance)
 }

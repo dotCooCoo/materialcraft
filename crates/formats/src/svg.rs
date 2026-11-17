@@ -48,6 +48,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<Image> {
 
     let pixels = draw::render(&tree, usvg::Transform::identity(), width, height, 0, DRAW_BUDGET)
         .map_err(|refusal| FormatError::Image(format!("SVG not drawn: {}", refusal.message)))?;
+
     Ok(Image::generate(width, height, Kind::Color, |x, y| {
         let pixel = pixels.pixel(x, y).map(|pixel| pixel.demultiply());
         pixel.map_or([0.0; 4], |pixel| {
@@ -78,15 +79,17 @@ mod tests {
     #[test]
     fn draws_a_shape_in_linear_light() {
         let image = decode(&svg(r##"<rect width="2" height="2" fill="#ff0000"/>"##)).unwrap();
-        assert_eq!((image.w, image.h), (4, 2));
+
         let left = image.get(0, 0, false);
+
+        assert_eq!((image.w, image.h), (4, 2));
         assert!((left[0] - 1.0).abs() < 1e-3 && left[1].abs() < 1e-3 && (left[3] - 1.0).abs() < 1e-3, "{left:?}");
         assert_eq!(image.get(3, 1, false)[3], 0.0);
     }
 
     #[test]
     fn hostile_documents_are_errors_not_crashes() {
-        // Entities that expand past the shared bound (a "billion laughs").
+        // Entities that expand past the shared bound (a "billion laughs")
         let mut laughs = String::from(r#"<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY a "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa">"#);
         for level in 1..10 {
             let prev = char::from(b'a' + level - 1);
@@ -94,12 +97,17 @@ mod tests {
             laughs.push_str(&format!("<!ENTITY {name} \"{}\">", format!("&{prev};").repeat(10)));
         }
         laughs.push_str(r#"]><svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><text>&j;</text></svg>"#);
+
         assert!(decode(laughs.as_bytes()).is_err());
-        // Nesting deeper than the tree depth.
+
+        // Nesting deeper than the tree depth
         let deep = format!("{}{}", "<g>".repeat(200), "</g>".repeat(200));
+
         assert!(decode(&svg(&deep)).is_err());
-        // Larger than the image side limit.
+
+        // Larger than the image side limit
         let huge = br#"<svg xmlns="http://www.w3.org/2000/svg" width="100000" height="1"/>"#;
+
         assert!(decode(huge).is_err());
         assert!(decode(b"<svg").is_err());
     }
@@ -120,10 +128,14 @@ mod tests {
     #[test]
     fn embedded_svgs_share_the_nesting_budget() {
         let shallow = decode(&embedded(2)).unwrap();
+
         assert!(shallow.get(1, 1, false)[0] > 0.9, "{:?}", shallow.get(1, 1, false));
+
         let deep = decode(&embedded(40)).unwrap();
+
         assert_eq!(deep.get(1, 1, false)[3], 0.0);
-        // The document alone past its own budget is refused.
+
+        // The document alone past its own budget is refused
         assert!(decode(&svg(&nested_groups(40, ""))).is_err());
     }
 
@@ -131,6 +143,7 @@ mod tests {
     fn linked_files_are_not_read() {
         let linked = svg(r#"<image href="file:///etc/hostname" width="4" height="2"/>"#);
         let image = decode(&linked).unwrap();
+
         assert_eq!(image.get(0, 0, false)[3], 0.0);
     }
 
@@ -140,6 +153,7 @@ mod tests {
         let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         gz.write_all(&svg(r#"<rect width="4" height="2" fill="blue"/>"#)).unwrap();
         let image = decode(&gz.finish().unwrap()).unwrap();
+
         assert!(image.get(1, 1, false)[2] > 0.9);
     }
 }

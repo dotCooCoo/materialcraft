@@ -2973,6 +2973,7 @@ dependencies = [
  "js-sys",
  "log",
  "materialcraft-engine",
+ "materialcraft-formats",
  "materialcraft-ui-egui",
  "wasm-bindgen",
  "wasm-bindgen-futures",

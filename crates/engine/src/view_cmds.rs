@@ -29,7 +29,7 @@ pub(crate) fn specs() -> Vec<CommandSpec> {
             "3D view settings",
             [],
             None,
-            "{scene? (cube|cylinder|plane|sphere|material_ball|rounded_cube|torus), tiling?, yaw?, pitch?, distance?, target? ([x, y, z] orbit point in mesh radii from its center, within the pan limit preference), environment? (studio|sunset|overcast|night), envRotation?, exposure?, heightScale? (displacement depth in mesh radii, 0..0.5), heightLevel? (height that stays on the surface, 0..1; 0 = rises out), normalYFlip? (DirectX normal maps; default false/OpenGL), axis?, grid?, transparency? (see through where alpha < 1), alphaView? (show the alpha channel)}",
+            "{scene? (cube|cylinder|plane|sphere|material_ball|rounded_cube|torus), tiling?, yaw?, pitch?, distance?, target? ([x, y, z] orbit point in mesh radii from its center, within the pan limit preference), environment? (studio|sunset|overcast|night), envRotation?, exposure?, heightScale? (displacement depth in mesh radii, 0..0.5), heightLevel? (height that stays on the surface, 0..1; 0 = rises out), normalYFlip? (DirectX normal maps; default true/DirectX), axis?, grid?, transparency? (see through where alpha < 1), alphaView? (show the alpha channel)}",
             always,
             view3d
         ),
@@ -60,109 +60,117 @@ pub(crate) fn specs() -> Vec<CommandSpec> {
     ]
 }
 
-fn view2d(s: &mut Session, p: &J) -> Result<J> {
-    // Validate the channel before applying any part of the request.
-    let channel = strp(p, "channel");
+fn view2d(session: &mut Session, params: &J) -> Result<J> {
+    // Validate the channel before applying any part of the request
+    let channel = strp(params, "channel");
     if channel.is_some_and(|c| !["rgba", "r", "g", "b", "a"].contains(&c)) {
         return Err(bad("view.2d", "`channel` is rgba, r, g, b or a"));
     }
-    if let Some(n) = u64p(p, "node") {
-        s.graph()?.node(NodeId(n)).map_err(|_| bad("view.2d", format!("no node {n}")))?;
-        s.view2d.node = Some(NodeId(n));
-        s.view2d.port = 0;
+
+    if let Some(node) = u64p(params, "node") {
+        session.graph()?.node(NodeId(node)).map_err(|_| bad("view.2d", format!("no node {node}")))?;
+        session.view2d.node = Some(NodeId(node));
+        session.view2d.port = 0;
     }
-    if let Some(port) = u64p(p, "port") {
-        s.view2d.port = port as usize;
+    if let Some(port) = u64p(params, "port") {
+        session.view2d.port = port as usize;
     }
-    if let Some(t) = boolp(p, "tiled") {
-        s.view2d.tiled = t;
+    if let Some(tiled) = boolp(params, "tiled") {
+        session.view2d.tiled = tiled;
     }
-    if let Some(h) = boolp(p, "histogram") {
-        s.view2d.histogram = h;
+    if let Some(histogram) = boolp(params, "histogram") {
+        session.view2d.histogram = histogram;
     }
     if let Some(c) = channel {
-        s.view2d.channel = c.into();
+        session.view2d.channel = c.into();
     }
-    Ok(serde_json::to_value(&s.view2d).unwrap_or(J::Null))
+
+    Ok(serde_json::to_value(&session.view2d).unwrap_or(J::Null))
 }
 
-fn view3d(s: &mut Session, p: &J) -> Result<J> {
-    // Validated up front so a bad target changes nothing.
-    let target = match p.get("target") {
+fn view3d(session: &mut Session, params: &J) -> Result<J> {
+    // Validate up front so a bad target changes nothing
+    let target = match params.get("target") {
         None => None,
         Some(t) => {
             let xyz: Option<Vec<f32>> =
                 t.as_array().filter(|a| a.len() == 3).map(|a| a.iter().filter_map(J::as_f64).map(|f| f as f32).filter(|f| f.is_finite()).collect());
             match xyz.as_deref() {
-                Some(&[x, y, z]) => Some(s.camera.clamp_target([x, y, z])),
+                Some(&[x, y, z]) => Some(session.camera.clamp_target([x, y, z])),
                 _ => return Err(bad("view.3d", "`target` is [x, y, z]")),
             }
         }
     };
-    // A rejected environment must not leave a new scene applied.
-    let environment = strp(p, "environment");
-    if let Some(e) = environment
-        && !ENVIRONMENTS.iter().any(|(id, _)| *id == e)
+
+    // A rejected environment must not leave a new scene applied
+    let environment = strp(params, "environment");
+    if let Some(environment) = environment
+        && !ENVIRONMENTS.iter().any(|(id, _)| *id == environment)
     {
-        return Err(bad("view.3d", format!("unknown environment `{e}`")));
+        return Err(bad("view.3d", format!("unknown environment `{environment}`")));
     }
-    if let Some(sc) = strp(p, "scene") {
-        if sc == "custom" && s.custom_mesh.is_none() {
+
+    if let Some(scene) = strp(params, "scene") {
+        if scene == "custom" && session.custom_mesh.is_none() {
             return Err(bad("view.3d", "no mesh is loaded: use view.3d.loadMesh"));
         }
-        let v = &mut s.view3d;
-        if sc != "custom" && !SCENES.iter().any(|(id, _)| *id == sc) {
-            return Err(bad("view.3d", format!("unknown scene `{sc}`")));
+
+        let view = &mut session.view3d;
+        if scene != "custom" && !SCENES.iter().any(|(id, _)| *id == scene) {
+            return Err(bad("view.3d", format!("unknown scene `{scene}`")));
         }
-        v.scene = sc.into();
+
+        view.scene = scene.into();
     }
-    let v = &mut s.view3d;
-    if let Some(e) = environment {
-        v.environment = e.into();
+
+    let view = &mut session.view3d;
+    if let Some(environment) = environment {
+        view.environment = environment.into();
     }
-    if let Some(t) = f32p(p, "tiling") {
-        v.tiling = t.clamp(0.1, 64.0);
+    if let Some(tiling) = f32p(params, "tiling") {
+        view.tiling = tiling.clamp(0.1, 64.0);
     }
-    if let Some(t) = f32p(p, "yaw") {
-        v.yaw = t.rem_euclid(360.0);
+    if let Some(yaw) = f32p(params, "yaw") {
+        view.yaw = yaw.rem_euclid(360.0);
     }
-    if let Some(t) = f32p(p, "pitch") {
-        v.pitch = t.clamp(-89.0, 89.0);
+    if let Some(pitch) = f32p(params, "pitch") {
+        view.pitch = pitch.clamp(-89.0, 89.0);
     }
-    if let Some(t) = f32p(p, "distance") {
-        v.distance = t.clamp(1.2, 20.0);
+    if let Some(distance) = f32p(params, "distance") {
+        view.distance = distance.clamp(1.2, 20.0);
     }
-    if let Some(t) = target {
-        v.target = t;
+    if let Some(target) = target {
+        view.target = target;
     }
-    if let Some(t) = f32p(p, "envRotation") {
-        v.env_rotation = t.rem_euclid(360.0);
+    if let Some(env_rotation) = f32p(params, "envRotation") {
+        view.env_rotation = env_rotation.rem_euclid(360.0);
     }
-    if let Some(t) = f32p(p, "exposure") {
-        v.exposure = t.clamp(-10.0, 10.0);
+    if let Some(exposure) = f32p(params, "exposure") {
+        view.exposure = exposure.clamp(-10.0, 10.0);
     }
-    if let Some(t) = f32p(p, "heightScale") {
-        v.height_scale = t.clamp(0.0, 0.5);
+    if let Some(height_scale) = f32p(params, "heightScale") {
+        view.height_scale = height_scale.clamp(0.0, 0.5);
     }
-    if let Some(t) = f32p(p, "heightLevel") {
-        v.height_level = t.clamp(0.0, 1.0);
+    if let Some(height_level) = f32p(params, "heightLevel") {
+        view.height_level = height_level.clamp(0.0, 1.0);
     }
-    if let Some(flip) = boolp(p, "normalYFlip") {
-        v.normal_y_flip = flip;
+    if let Some(flip) = boolp(params, "normalYFlip") {
+        view.normal_y_flip = flip;
     }
-    if let Some(b) = boolp(p, "axis") {
-        v.show_axis = b;
+    if let Some(show_axis) = boolp(params, "axis") {
+        view.show_axis = show_axis;
     }
-    if let Some(b) = boolp(p, "grid") {
-        v.show_grid = b;
+    if let Some(show_grid) = boolp(params, "grid") {
+        view.show_grid = show_grid;
     }
-    if let Some(b) = boolp(p, "transparency") {
-        v.transparency = b;
+    if let Some(transparency) = boolp(params, "transparency") {
+        view.transparency = transparency;
     }
-    if let Some(b) = boolp(p, "alphaView") {
-        v.alpha_view = b;
+    if let Some(alpha_view) = boolp(params, "alphaView") {
+        view.alpha_view = alpha_view;
     }
-    Ok(serde_json::to_value(&s.view3d).unwrap_or(J::Null))
+
+    Ok(serde_json::to_value(&session.view3d).unwrap_or(J::Null))
 }
 
 #[cfg(not(target_arch = "wasm32"))]

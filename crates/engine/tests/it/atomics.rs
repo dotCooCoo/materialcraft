@@ -170,16 +170,21 @@ fn exposed_parameter_binding_remains_live_after_saving() {
     let mut session = Session::new(atomic_sample().unwrap());
     let blur = session.graph().unwrap().nodes.iter().find(|node| node.def == "blur").unwrap().id;
     execute(&mut session, "graph.exposed.add", &json!({"id": "radius", "bind": {"node": blur.0, "param": "intensity"}})).unwrap();
-    execute(&mut session, "graph.exposed.set", &json!({"id": "radius", "value": 4.0})).unwrap();
+
+    // At the 32-pixel preview, strength 4 covers only the center texel
+    execute(&mut session, "graph.exposed.set", &json!({"id": "radius", "value": 8.0})).unwrap();
     let bytes = write_sbs(&session.pkg).unwrap();
     let loaded = read_sbs(&bytes, "exposed.sbs", &|_| None).unwrap();
+
     assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
+
     let mut loaded = Session::new(loaded.pkg);
     loaded.preview_size = Some(32);
     loaded.cook();
     let before = loaded.cooked.image(blur, 0).unwrap().data.clone();
     execute(&mut loaded, "graph.exposed.set", &json!({"id": "radius", "value": 0.0})).unwrap();
     loaded.cook();
+
     assert_ne!(before, loaded.cooked.image(blur, 0).unwrap().data);
 }
 

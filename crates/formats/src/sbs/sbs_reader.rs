@@ -610,6 +610,12 @@ impl<'text> SbsReader<'text, '_> {
         let Some(param_value) = child_element(param, "paramValue") else { return };
 
         if let Some(value) = sbs_constant(param_value) {
+            // Preserve selector bits until the cook can resolve them against connected image kinds
+            if node.def == "channels_shuffle" && matches!(id, "red" | "green" | "blue" | "alpha") {
+                node.params.insert(id.to_string(), Value::Enum(value.int(0) as u32));
+                return;
+            }
+
             match to_param_value(like, &value, options) {
                 Some(value) => {
                     node.params.insert(id.to_string(), value);
@@ -635,12 +641,11 @@ impl<'text> SbsReader<'text, '_> {
     pub(super) fn read_filter_params(&mut self, node: &mut Node, filter: &FilterMap, params: Option<XmlNode>, graph_name: &str) {
         let Some(def) = find(filter.def) else { return };
 
+        // Store omitted native values explicitly for imported node inspection and round trips
         if filter.sbs == "uniform" {
-            // An omitted SBS output color is black; the editor's new-node preset is gray
             node.params.insert("color".into(), Value::Color([0.0, 0.0, 0.0, 1.0]));
         }
         if filter.sbs == "normal" {
-            // Native files omit these defaults; the editor's new-node preset differs
             node.params.insert("opengl".into(), Value::Bool(false));
             node.params.insert("height_alpha".into(), Value::Bool(true));
         }

@@ -114,7 +114,9 @@ pub(crate) fn cook_node(
         return fail(error, 0);
     }
 
-    if !node.functions.is_empty() || matches!(node.def.as_str(), "pixel_processor" | "value_processor" | "fx_map" | "transformation") {
+    if !node.functions.is_empty()
+        || matches!(node.def.as_str(), "pixel_processor" | "value_processor" | "fx_map" | "transformation" | "blur" | "directional_blur" | "sharpen")
+    {
         base.variables(variables.to_mut());
     }
 

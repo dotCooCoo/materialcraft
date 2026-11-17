@@ -1,5 +1,11 @@
 # Parity with the reference workflow
 
+The [catalog status](node-catalog-parity.md) covers 29 main-graph entries, 85 function
+operations, four map kinds and 954 loaded package functions. The
+[atomic corrections](atomic-parity-improvements.md) describe filter, channel-selection
+and background fixes with local regression coverage. Full numerical parity remains
+unestablished.
+
 > The assessment below predates the 2026-11-05 primitive rewrite. Its old library counts and
 > compatibility claims are historical. See [atomic-workflow.md](atomic-workflow.md) and
 > [ROADMAP.md](../ROADMAP.md) for the current scope and remaining validation.

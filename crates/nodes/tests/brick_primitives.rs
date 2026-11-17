@@ -3,8 +3,15 @@ use materialcraft_image::{Image, Kind};
 use materialcraft_nodes::{CookContext, find, resolve_params};
 use std::collections::BTreeMap;
 
-fn cook(def: &str, values: BTreeMap<String, Value>, inputs: &[Option<Image>]) -> Image {
+fn cook(def: &str, mut values: BTreeMap<String, Value>, inputs: &[Option<Image>]) -> Image {
     let definition = find(def).unwrap();
+
+    // Geometry and maximum-blend fixtures use unattenuated grayscale patterns
+    if def == "fx_map" {
+        values.entry("roughness".into()).or_insert(Value::Float(0.0));
+        values.entry("color_mode".into()).or_insert(Value::Bool(false));
+    }
+
     let params = resolve_params(definition, &values);
     let context = CookContext {
         format: materialcraft_core::OutputFormat::F32,

@@ -48,9 +48,22 @@ fn release() -> craft_update::Release {
     }
 }
 
+/// Offers `release()` and ticks until the offer's thread has answered and the prompt is open.
+/// A fresh updater declines an offer only when the pins file holds a launcher choice, and then
+/// `managed()` is set, so the wait fails instead of ticking forever.
+fn offer(updater: &mut Updater) {
+    updater.offer(release());
+    let ctx = egui::Context::default();
+    while !updater.prompt_open() {
+        assert!(updater.managed().is_none(), "the offer was declined: {} holds a launcher choice", no_pins().display());
+        updater.tick(&ctx);
+        std::thread::yield_now();
+    }
+}
+
 pub(super) fn open_prompt(app: &mut MaterialCraftApp) {
     app.updates_rt.updater = Updater::new(&crate::UPDATE_APP, "0.1.0").with_pins_path(no_pins());
-    app.updates_rt.updater.offer(release());
+    offer(&mut app.updates_rt.updater);
 }
 
 #[test]
@@ -144,7 +157,7 @@ fn result_window_shows_every_status_but_idle() {
 #[test]
 fn an_offered_release_opens_the_prompt_over_the_window() {
     let mut app = app();
-    app.updates_rt.updater.offer(release());
+    offer(&mut app.updates_rt.updater);
     assert!(blocks_input(&app));
 
     let mut harness = egui_kittest::Harness::builder().build_ui_state(|ui, app: &mut MaterialCraftApp| crate::windows::show(app, ui.ctx()), app);
@@ -204,7 +217,7 @@ fn shortcuts_wait_while_the_prompt_is_open() {
     assert!(idle.ui.windows.export, "the shortcut works without the prompt");
 
     let mut prompted = app();
-    prompted.updates_rt.updater.offer(release());
+    offer(&mut prompted.updates_rt.updater);
     press_export(&mut prompted);
     assert!(!prompted.ui.windows.export);
 }

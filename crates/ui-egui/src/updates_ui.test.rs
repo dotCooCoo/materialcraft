@@ -50,15 +50,18 @@ fn release() -> craft_update::Release {
 }
 
 /// Offers `release()` and ticks until the offer's thread has answered and the prompt is open.
-/// A fresh updater declines an offer only when the pins file holds a launcher choice, and then
-/// `managed()` is set, so the wait fails instead of ticking forever.
+/// A fresh updater declines an offer only when the pins file holds a launcher choice, which sets
+/// `managed()`. A tick asks for another frame while the offer waits for its thread, and asks for
+/// none once the thread has ended without an answer, so the wait fails in both cases instead of
+/// ticking forever
 fn offer(updater: &mut Updater) {
     updater.offer(release());
     let ctx = egui::Context::default();
 
     while !updater.prompt_open() {
         assert!(updater.managed().is_none(), "the offer was declined: {} holds a launcher choice", no_pins().display());
-        updater.tick(&ctx);
+        let _ = ctx.run_logic(&egui::RawInput::default(), |ctx| updater.tick(ctx));
+        assert!(updater.prompt_open() || updater.managed().is_some() || ctx.has_requested_repaint(), "the offer's thread ended without an answer");
         std::thread::yield_now();
     }
 }

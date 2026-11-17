@@ -44,7 +44,7 @@ repository = "https://github.com/storytold/materialcraft"
 craft-mime = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", version = "0.1.0" }
 # Read 3D meshes through craft-mesh; keep mesh processing app-local
 craft-mesh = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", default-features = false, features = ["obj", "gltf"] }
-# Shared XML escaping; SBS model and serialization policy stay app-local.
+# Shared XML escaping; SBS model and serialization policy stay app-local
 craft-xml = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc" }
 # Bound SVG parsing and drawing through craft-svg
 craft-svg = { version = "0.1.0", git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", features = ["tree-render"] }
@@ -84,27 +84,27 @@ roxmltree = "0.20"
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 cap-std = "4"
 getrandom = "0.3"
-# Shared Craft egui components (widget palette, icon buttons, panel docking): storytold/craft-libs,
-# MIT OR Apache-2.0, with each dependency pinned to its reviewed revision
+# Shared Craft egui components from storytold/craft-libs
+# MIT OR Apache-2.0; all shared dependencies use one reviewed revision
 egui_kittest = "0.37"
 craft-mcmat = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc" }
 craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", features = ["serde"] }
-# Keyboard bindings (chords, dispatch and display text): storytold/craft-libs, MIT OR Apache-2.0.
+# Keyboard bindings (chords, dispatch and display text): storytold/craft-libs, MIT OR Apache-2.0
 craft-keymap = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", features = ["egui"] }
-# Native dialogs that do not block the event loop: storytold/craft-libs, MIT OR Apache-2.0.
+# Native dialogs that do not block the event loop: storytold/craft-libs, MIT OR Apache-2.0
 craft-dialogs = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc" }
-# The platform quit and the macOS Quit menu item: storytold/craft-libs, MIT OR Apache-2.0.
+# The platform quit and the macOS Quit menu item: storytold/craft-libs, MIT OR Apache-2.0
 craft-quit = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", features = ["egui"] }
 craft-menu = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc" }
-# Who draws the window frame, and an app-drawn strip as the title bar: storytold/craft-libs, MIT OR Apache-2.0.
+# Who draws the window frame, and an app-drawn strip as the title bar: storytold/craft-libs, MIT OR Apache-2.0
 craft-window = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", features = ["egui"] }
-# Release checks and self-updates for the desktop app: storytold/craft-libs, MIT OR Apache-2.0.
+# Release checks and self-updates for the desktop app: storytold/craft-libs, MIT OR Apache-2.0
 craft-update = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", features = ["egui"] }
-# Atomic persistence, at the suite's current revision.
+# Atomic persistence, at the suite's current revision
 craft-atomic = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc" }
-# Parse the optional shared font catalog at build time; the font repository is not a dependency.
+# Parse the optional shared font catalog at build time; the font repository is not a dependency
 craft-fonts-build = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc" }
-# Float image planes and texture sampling for node cooking: storytold/craft-libs, MIT OR Apache-2.0.
+# Float image planes and texture sampling for node cooking: storytold/craft-libs, MIT OR Apache-2.0
 craft-texture = { git = "https://github.com/storytold/craft-libs", rev = "453b0da782ccef39be9a6dac8d27c80b553ef1cc", features = ["parallel"] }
 
 # egui 0.37 and winit: the suite's forks (storytold/egui, storytold/winit), as craft-libs pins them.

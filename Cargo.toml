@@ -36,8 +36,6 @@ default-members = [
 version = "0.4.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.95"
-repository = "https://github.com/storytold/materialcraft"
 
 [workspace.dependencies]
 # Standard Base64 output; strict SBS decoding remains app-local

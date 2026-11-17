@@ -21,9 +21,10 @@ L2  formats   native .sbs packages, .mcraft ZIP packages, .mcmat portable materi
               texture encode (PNG/JPEG/TGA/BMP/WEBP/EXR/HDR), atomic writes
 L3  engine    Session (open packages, active graph, selection, 2D/3D view state, snapshot undo, cache),
               the command registry, inspect, sample materials and graph templates
-L3  render    the 3D view: BVH ray casts, the height output displacing a subdivided mesh, GGX PBR with
-              prefiltered IBL + SH diffuse, alpha transparency (layered ray compositing) and an
-              alpha channel view, ACES tone mapping; procedural environments
+L3  render    the 3D view: BVH ray casts, the height output displacing a subdivided mesh, the
+              OpenPBR Surface model and simpler shaders with prefiltered IBL + SH diffuse, point
+              lights with shadows, alpha transparency (layered ray compositing) and an alpha
+              channel view, ACES or plain sRGB tone mapping; procedural environments
 L4  automation MCP server (rmcp), JSON-lines RPC (stdio/TCP with token), bridge client, workspace sandbox
 L5  ui-egui   the egui shell: docking (craft-ui), graph editor, library, properties, 2D/3D views,
               dialogs, menus, control channel with synthetic input
@@ -60,11 +61,12 @@ offset by powers of two or set absolutely. While editing, outputs are capped at 
 (512 px by default), with pixel-based parameters scaled by `w / 256` so previews and full-size
 exports look the same. Exports cook at full size through the same cache.
 
-The 2D toolbar and the 3D view's Display menu expose the shared preview limit (256, 512, 1024,
+The 2D toolbar and the 3D view's renderer settings expose the shared preview limit (256, 512, 1024,
 2048 or 4096 px, or Full size). This is a cap, so a 4K preview requires a graph/node configured
 for 4096 px or larger. Both controls run `view.previewSize` and persist the choice in preferences;
 control-channel calls to the same command also retain their size across UI frames. The 3D view
-uses those cooked maps, while its rendered frame follows the panel's physical pixel dimensions.
+uses those cooked maps, while its rendered frame follows the panel's physical pixel dimensions,
+or the render resolution its camera sets.
 If the device supports smaller textures than the cooked image, the 2D view reduces only the
 uploaded texture to that limit; source pixels, readout and screenshots retain the cooked size.
 
@@ -245,7 +247,11 @@ panel. The graph editor lays nodes out in graph space, draws cards with thumbnai
 results (uploaded once per cache key), wires as cubic beziers between typed ports (hit-tested
 against the curve, so wires can be selected, deleted, swapped or split with a reroute dot), and turns
 gestures into commands only when they complete. See [wires-and-alpha.md](wires-and-alpha.md). The 3D view renders with `materialcraft-render`
-on the CPU: half resolution while the camera moves, 2×2 supersampled when it rests.
+on the CPU: half resolution while the camera moves, 2×2 supersampled when it rests. Its state is
+`materialcraft_geom::view::View3d` (L0), so the engine edits it through `view.3d` and the renderer
+turns it into its settings (`Settings::for_view`) without either depending on the other. The
+grid, bounding box, light helpers and tangent space are lines the UI draws over the frame, cut
+where a ray from the camera meets the mesh first.
 
 The 3D material has its own `MaterialPreview` assignment state. Automatic graph output usages and
 explicit `MaterialSource` overrides resolve to channels from `core::MaterialChannel`, shared with the

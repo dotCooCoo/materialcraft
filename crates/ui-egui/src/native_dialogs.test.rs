@@ -312,6 +312,66 @@ fn a_picked_mesh_shows_in_the_3d_view() {
 }
 
 #[test]
+fn render_dialog_exports_the_frame_captured_before_a_scene_change() {
+    let mut app = app();
+    let pixels = std::sync::Arc::new(vec![5, 19, 77, 255, 200, 40, 9, 128]);
+    let path = temp("captured-render.png");
+    ask(&mut app, FileDialog::save(), Then::SaveRender(Box::new((2, 1, pixels.clone()))));
+    app.session.view3d.scene = "sphere".into();
+
+    let target = path.clone();
+    answer_all(&mut app, move || Answer::Paths(vec![target.clone()]));
+
+    let written = image::load_from_memory(&std::fs::read(&path).unwrap()).unwrap().to_rgba8();
+    assert_eq!((written.width(), written.height(), written.as_raw()), (2, 1, pixels.as_ref()));
+    assert_eq!(std::sync::Arc::strong_count(&pixels), 1, "the answered dialog retained the frame");
+    assert!(app.session.finish_display_handoff().is_none());
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn geometry_dialog_exports_the_mesh_captured_before_a_scene_change() {
+    let mut app = app();
+    let mesh = std::sync::Arc::new(materialcraft_engine::geom::primitives::cube(1.0));
+    let path = temp("captured-mesh.obj");
+    ask(&mut app, FileDialog::save(), Then::ExportGeometry(mesh.clone()));
+    app.session.custom_mesh = Some(("newer".into(), std::sync::Arc::new(materialcraft_engine::geom::primitives::sphere(1.0, 8, 4))));
+
+    let target = path.clone();
+    answer_all(&mut app, move || Answer::Paths(vec![target.clone()]));
+
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), materialcraft_engine::formats::mesh::obj_text(&mesh));
+    assert_eq!(std::sync::Arc::strong_count(&mesh), 1, "the answered dialog retained the mesh");
+    assert!(app.session.finish_display_handoff().is_none());
+    std::fs::remove_file(path).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn export_dialogs_keep_native_non_utf8_destinations() {
+    use std::os::unix::ffi::OsStringExt;
+
+    for geometry in [false, true] {
+        let mut app = app();
+        let filename: Vec<u8> = format!("mc-export-{}-{geometry}-", std::process::id()).into_bytes().into_iter().chain([0xff]).collect();
+        let path = std::env::temp_dir().join(std::ffi::OsString::from_vec(filename));
+        if geometry {
+            let mesh = std::sync::Arc::new(materialcraft_engine::geom::primitives::cube(1.0));
+            ask(&mut app, FileDialog::save(), Then::ExportGeometry(mesh.clone()));
+            let target = path.clone();
+            answer_all(&mut app, move || Answer::Paths(vec![target.clone()]));
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), materialcraft_engine::formats::mesh::obj_text(&mesh));
+        } else {
+            ask(&mut app, FileDialog::save(), Then::SaveRender(Box::new((1, 1, std::sync::Arc::new(vec![5, 19, 77, 255])))));
+            let target = path.clone();
+            answer_all(&mut app, move || Answer::Paths(vec![target.clone()]));
+            assert_eq!(image::load_from_memory(&std::fs::read(&path).unwrap()).unwrap().to_rgba8().as_raw(), &[5, 19, 77, 255]);
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
 fn the_2d_views_image_is_written_to_the_picked_file() {
     for ext in ["png", "exr"] {
         let mut app = app();

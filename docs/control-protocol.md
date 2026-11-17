@@ -116,7 +116,16 @@ Types: `move`, `down`, `up`, `click`, `doubleClick`, `drag`, `scroll`, `key` (eg
 | `graph.node.reset` | `{id?, param?, base?}` removes the driver and restores defaults; omit `param` to reset the selected parameter section |
 | `graph.preset.save` / `.apply` / `.delete` | `{name}`: store, restore or remove the current input values |
 | `graph.createFromSelection` | `{name?, ids?}`: move nodes into a sub-graph and replace them with an instance |
-| `view.2d` / `view.3d` | which node the 2D view shows, channel, tiling, histogram; scene, environment, camera, tiling, `heightScale` (how far the height output raises the mesh, in mesh radii) and `heightLevel` (the height that stays on the surface; 0 = the relief rises out of it), `normalYFlip` (interpret DirectX normal maps; default true/DirectX), `transparency` (see through where the alpha is below one: the opacity output, else the base color's alpha), `alphaView` (show the alpha channel) |
+| `view.2d` | `{node?, port?}` picks what the 2D view shows. Display: `channel` (`rgba`\|`r`\|`g`\|`b`\|`a`), `tiled` (repeat the image across the view), `checkerboard` (behind transparent pixels, else black), `premultiplied` (colors already multiplied by alpha), `srgb` (values are sRGB encoded, the default; false shows them as linear light), `physicalSize` (proportions of the graph's physical size), `maintainZoom` (keep the zoom when the image size changes, the default; false keeps the image's size on screen), `uv` (overlay the UV layout of the 3D view's mesh), `background` (an image file drawn behind transparent pixels, or null). Information panel: `information`, `sampler` (`[x, y]` in 0..1 from the top-left corner, or null). Histogram panel: `histogram`, `histogramChannel` (`luminance`\|`red`\|`green`\|`blue`\|`rgb`\|`alpha`), `histogramBits` (8\|16\|32; 0 follows the image), `histogramSqrt`, `histogramSelection` (`[low, high]` in 0..1, or null). A rejected parameter changes nothing; the result and `session.inspect` (`view2d`) hold every setting. Pan and zoom are UI state: `ui.set {imageCamera: {zoom, offset, fit}}` |
+| `view.3d` | Every setting of the 3D view, each optional; the reply is the whole view. See [3D view settings](#3d-view-settings) |
+| `view.3d.viewpoint` | `{name}`: `default`, `front`, `right`, `back`, `left`, `top` or `bottom` turns the camera to look from there, at the same distance |
+| `view.3d.frame` | `{}` centers the mesh and moves the camera to where all of it is in view |
+| `view.3d.resetCamera` | `{properties?}` puts the camera back where a new view has it; with `properties` also the lens, projection, background, resolution and clip planes |
+| `view.3d.resetLights`, `view.3d.resetEnvironment` | `{}` the lights, or the environment, of a new view |
+| `view.3d.resetMaterial` | `{common?}` puts the material model back to its defaults; with `common` only the parameters several shaders share, and the shader stays. The assigned images stay |
+| `view.3d.saveDefault` | `{}` makes the current view the one `view.3d.reset` and a new package start from. The app keeps it in its preferences |
+| `view.3d.saveState`, `view.3d.loadState` | `{path}` writes the view's settings to a `.mcview` file (JSON); `{path, mesh?}` applies one, switching to its mesh only with `mesh`. Numbers out of range are clamped; a file that is not a state changes nothing |
+| `view.3d.reset` | `{}` back to the saved default view, or the built-in one |
 | `view.3d.loadMesh` | `{path}` shows an OBJ, glTF or GLB mesh (scene `custom`) |
 | `library.list` | `{filter?, category?}`: every node with ports and parameters |
 | `library.tree` | `{filter?, category? (Top or Top/Sub), canvas? (material\|function\|pattern)}`: the Library panel's category tree and its entries. Each entry has `id`, `label`, `category`, `type` (`node`, `comment`, `frame`, `pin`, `instance`, `operation`, `functionInstance`, `pattern`, `bitmap`), the `canvas` that takes it (`any` for shared graph items), `missing` when MaterialCraft lacks the library package it needs, and `warning` when it can be added but is incomplete |
@@ -176,6 +185,46 @@ Source-file watching is not implemented yet. The global Function Library reads `
 References currently identify graphs by name; renaming an external source graph requires recreating
 its instances. Save As creates a separate file and does not redirect references to the original.
 
+## 3D view settings
+
+`view.3d` takes any of the settings below and leaves the rest as they are. A number out of range
+is held at the nearest limit; an unknown name (a scene, a shader, a material parameter) is an error
+and changes nothing. One mesh unit is 50 scene units; a built-in mesh is 100 across, one meter.
+
+| Group | Parameters |
+|---|---|
+| Scene | `scene` (`cube`, `cylinder`, `hollow_box`, `inner_box`, `plane`, `plane_hi_res`, `sphere`, `cloth`, `material_ball`, `rounded_cube`, `rounded_cylinder`, `sphere_2_tiles`, `torus`, or `custom` after `view.3d.loadMesh`) |
+| Camera | `yaw`, `pitch` (degrees), `distance` (mesh radii), `target` (`[x, y, z]` in mesh radii from the center, within the pan limit preference), `focalLength` (mm on a 36 × 24 frame, 0.01 to 100), `projection` (`perspective`, `orthographic`), `background` (`studio`: a gray backdrop that darkens toward the corners, the default; `color`; `environment`), `backgroundColor` (linear `[r, g, b]`, for `color`), `autoClip`, `nearClip`, `farClip` (scene units) |
+| Render resolution | `overrideResolution`, `viewportResolution` (start from the view's size), `renderResolution` (`[width, height]`, 16 to 4096), `renderScale` (25, 50, 100 or 200 percent). A resolution of its own is shown fitted in the view, with bars around it |
+| Environment | `environment` (`studio`, `sunset`, `overcast`, `night`), `envEnabled` (it lights the scene), `envRotation` (degrees), `exposure` (stops, -10 to 10) |
+| Lights | `ambient` (`{enabled?, color?}`), `light1`, `light2` (`{enabled?, color?, intensity?, yaw?, pitch?, distance?}`: a point light that orbits the scene's center), `shadows` (the point lights cast them) |
+| Display | `wireframe`, `backfaceCulling`, `axis` (the world axes with a scale), `grid`, `boundingBox`, `lightHelpers`, `vertexTangentSpace`, `sceneStats`, `resolution`, `fps` |
+| Material model | `shader` (`openPbr`, `blinn`, `lambert`, `meshInfo`, `metallicRoughness`, `metallicRoughnessCoated`, `metallicRoughnessSss`, `specularGlossiness`, `unlit`), `technique` (`tessellation`, `parallax`: how the height output shows), `meshInfo` (`normal`, `tangent`, `binormal`, `uv`, `uvTile`, `vertexColor`, `position`) |
+| Material values | `material` (`{parameter: number, [r, g, b] or bool}`; `null` puts a parameter back to its default), `channels` (`{parameter: bool}` switches a parameter, and the image a graph output gives it, on or off) |
+| UVs | `tiling`, `uvScale` (`[u, v]`), `physicalSize` (size the material by the physical size of its graph: a graph a meter wide covers a built-in mesh once) |
+| Height | `displacement` (raise the mesh), `heightScale` (mesh radii, 0 to 0.5), `heightLevel` (the height that stays on the surface; 0 = the relief rises out of it), `tessellation` (1 to 8), `normalYFlip` (DirectX normal maps; default false, OpenGL) |
+| Renderer | `samples` (rays per pixel side of a resting frame, 1 to 4), `ambientOcclusion` (rays, 0 to 32), `transparency` (see through where the alpha is below one), `alphaView` (show the alpha channel), `viewChannels` (`rgb`, `r`, `g`, `b`), `colorSpace` (`aces`, `srgb`) |
+
+The material parameters follow the public OpenPBR Surface model: `baseWeight`, `baseColor`,
+`baseMetalness`, `baseDiffuseRoughness`, `specularWeight`, `specularColor`, `specularRoughness`,
+`specularAnisotropy`, `specularIor`, `transmissionWeight`, `transmissionColor`, `subsurfaceWeight`,
+`subsurfaceColor`, `subsurfaceRadiusScale`, `coatWeight`, `coatColor`, `coatRoughness`, `coatIor`,
+`coatDarkening`, `fuzzWeight`, `fuzzColor`, `fuzzRoughness`, `emissionLuminance`, `emissionColor`,
+`thinFilmWeight`, `thinFilmThickness`, `thinFilmIor`, `geometryOpacity`, `geometryNormal`,
+`ambientOcclusion` and `height`; the glossy shaders add `specular` and `glossiness`. Each shader
+lists the parameters it shades with. `transmissionDepth`, the dispersion values, `subsurfaceRadius`,
+`subsurfaceAnisotropy`, `coatAnisotropy`, `geometryThinWalled` and the Phong tessellation values are
+kept with the state, but the CPU renderer does not show them.
+
+In the app the view's menus (Scene, Materials, Lights, Camera, Environment, Display, Renderer) and
+its tool strip run these commands, and Edit properties shows the material, the lights, the camera,
+the environment or the renderer in the Properties panel. Over the view: drag orbits, the middle
+button (or Alt+drag, or Ctrl with the right button) pans, the wheel and the right button zoom,
+Shift+drag turns the environment, Ctrl+Shift+drag (or the Light tool) moves the first point light,
+Shift+click (or the Select tool) selects the mesh; F frames, R puts the camera back, Shift+R also
+puts its properties back (with the Light tool: the light's position), Alt+S saves the render, Alt+C
+copies it, C and L pick the Camera and Light tools.
+
 ## 3D material assignment
 
 `view.3d.outputs {graph?, reset?}` applies a material graph's image outputs by their usage.
@@ -193,7 +242,7 @@ update when that source changes, and remain active while editing a Function Grap
 Opening a material graph automatically previews its output usages. Selecting or previewing a node
 in 2D does not reassign the 3D material. Dragging a graph from Explorer onto the 3D view applies its outputs without opening the graph.
 Canvas and Explorer context menus use the same assignment
-commands; the 3D View's Material menu lists its channel sources. A Height-only output affects height
+commands; the 3D view's material properties mark each parameter a graph output feeds. A Height-only output affects height
 sampling, not Base Color; assign that image to `baseColor` to inspect its grayscale pattern on the mesh.
 
 `session.inspect.material3d` reports assignments and resolved channels, including source graph/node/port,

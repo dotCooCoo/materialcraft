@@ -34,7 +34,13 @@ mod menu;
 #[path = "snapshot/node_search.rs"]
 mod node_search;
 
-use std::time::Duration;
+#[path = "snapshot/view2d.rs"]
+mod view2d;
+
+#[path = "snapshot/view3d.rs"]
+mod view3d;
+
+use std::{sync::Arc, time::Duration};
 
 use egui::vec2;
 use egui_kittest::{
@@ -62,7 +68,7 @@ fn settle(h: &mut Harness<'static, MaterialCraftApp>, frames: usize) {
     }
 }
 
-fn wait_for_3d_frame(h: &mut Harness<'static, MaterialCraftApp>, previous: Option<&[u8]>) -> (u32, u32, Vec<u8>) {
+fn wait_for_3d_frame(h: &mut Harness<'static, MaterialCraftApp>, previous: Option<&[u8]>) -> (u32, u32, Arc<Vec<u8>>) {
     for _ in 0..120 {
         if let Some(frame) = h.state().view3d.shown.as_ref()
             && previous.is_none_or(|pixels| frame.2.as_slice() != pixels)
@@ -799,7 +805,7 @@ fn snapshots() {
     save(&mut h, &dir, "new-graph");
     h.state_mut().ui.windows.new_graph = false;
 
-    // A cut-out material in the 3D view (an opacity output), a reroute dot pulled out of a wire and another wire selected; then the alpha channel view
+    // Capture the cutout and reroute selection before switching to alpha
     h.state_mut().run("file.new", json!({"template": "atomics", "size": 512}));
     let holes = h.state_mut().run("graph.node.add", json!({"def": "pixel_processor", "at": [0, -260]})).unwrap()["id"].as_u64().unwrap();
     let out = h.state_mut().run("graph.node.add", json!({"def": "output", "at": [420, -260], "connectFrom": {"node": holes}, "params": {"usage": 7}})).unwrap()

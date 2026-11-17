@@ -27,6 +27,8 @@ pub struct Prefs {
     pub show_home: bool,
     /// 3D view camera: pan limit and speed
     pub camera: CameraPrefs,
+    /// The 3D view a reset and a new document start from (3D view ▸ Scene ▸ Save Current State As Default)
+    pub default_view3d: Option<materialcraft_engine::View3d>,
 }
 
 impl Default for Prefs {
@@ -45,6 +47,7 @@ impl Default for Prefs {
             library_list: false,
             show_home: true,
             camera: CameraPrefs::default(),
+            default_view3d: None,
         }
     }
 }
@@ -77,5 +80,15 @@ mod tests {
         assert_eq!(v["history"]["undoLimit"], 500);
         assert_eq!(v["libraryCache"], serde_json::json!({"diskMib": 512, "maxPreviews": 12000}));
         assert_eq!(serde_json::from_value::<Prefs>(v).unwrap(), p);
+    }
+
+    #[test]
+    fn the_default_3d_view_persists() {
+        assert_eq!(Prefs::default().default_view3d, None);
+
+        let view = materialcraft_engine::View3d { scene: "sphere".into(), focal_length: 50.0, show_grid: true, ..Default::default() };
+        let saved = serde_json::to_value(Prefs { default_view3d: Some(view.clone()), ..Prefs::default() }).unwrap();
+        assert_eq!(saved["defaultView3d"]["focalLength"], 50.0);
+        assert_eq!(serde_json::from_value::<Prefs>(saved).unwrap().default_view3d, Some(view));
     }
 }

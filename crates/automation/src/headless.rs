@@ -1,13 +1,13 @@
 //! The headless backend: a [`Session`] plus file I/O and windowless renders. Synchronous and UI-free; the MCP server, the RPC server and the CLI all drive it
 
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::Path;
 
 use materialcraft_engine::core::NodeId;
 use materialcraft_engine::formats::material::MATERIAL_EXT;
 use materialcraft_engine::{Session, commands, file_cmds, inspect, material_cmds};
-use materialcraft_render::{Lighting, Maps, Relief, Scene, Settings, VIEW_TRIANGLES};
+use materialcraft_render::{Lighting, Maps, Scene, Settings};
 use serde_json::{Value, json};
 
 use crate::budgets::{HQ_TRIANGLES, MAX_LOCAL_RENDER_SIDE, MAX_PNG_SIDE, check_png, encode_png};
@@ -36,19 +36,31 @@ fn read_file(fs: &Filesystem, path: &str) -> Result<Vec<u8>, AutomationError> {
 /// Read a local file under the same bound as capability workspaces: trusted access widens where a
 /// path may point, not how much memory one read may take.
 fn read_trusted(path: &str) -> Result<Vec<u8>, AutomationError> {
-    let file = File::open(path).map_err(|e| AutomationError::Io(format!("cannot read {path}: {e}")))?;
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+
+        // Reject named pipes without waiting for a writer, even if the path changes during open
+        options.custom_flags(rustix::fs::OFlags::NONBLOCK.bits() as i32);
+    }
+    let file = options.open(path).map_err(|error| AutomationError::Io(format!("cannot read {path}: {error}")))?;
     let metadata = file.metadata().map_err(|e| AutomationError::Io(format!("cannot read {path}: {e}")))?;
     if !metadata.is_file() {
         return Err(bad(format!("not a regular file: `{path}`")));
     }
+
     if metadata.len() > MAX_READ_BYTES {
         return Err(bad(format!("file too large: `{path}` is {} bytes (limit {MAX_READ_BYTES})", metadata.len())));
     }
+
     let mut bytes = Vec::new();
     file.take(MAX_READ_BYTES + 1).read_to_end(&mut bytes).map_err(|e| AutomationError::Io(format!("cannot read {path}: {e}")))?;
     if bytes.len() as u64 > MAX_READ_BYTES {
         return Err(bad(format!("file too large: `{path}` exceeds the {MAX_READ_BYTES}-byte limit")));
     }
+
     Ok(bytes)
 }
 
@@ -276,10 +288,11 @@ impl Headless {
     }
 
     fn render_3d(&mut self, o: &RenderOptions, max: u32) -> (u32, u32, Vec<u8>) {
-        let v = &self.session.view3d;
+        let v = &self.session.rendered_view3d();
         let scene_id = o.scene.clone().unwrap_or_else(|| v.scene.clone());
         let custom = self.session.custom_mesh.clone().filter(|_| scene_id == "custom");
-        let key = custom.as_ref().map_or_else(|| scene_id.clone(), |(n, _)| format!("custom:{n}"));
+        let key = custom.as_ref().map_or_else(|| scene_id.clone(), |(name, _)| format!("custom:{name}:{}", self.session.custom_mesh_generation));
+
         if self.scene.as_ref().is_none_or(|(id, _)| *id != key) {
             let scene = match custom {
                 Some((_, mesh)) => Scene::new((*mesh).clone()),
@@ -288,32 +301,22 @@ impl Headless {
 
             self.scene = Some((key, scene));
         }
+
         if self.light.as_ref().is_none_or(|l| l.name != v.environment) {
             self.light = Some(Lighting::new(&v.environment));
         }
+
         let tiling = o.tiling.unwrap_or(v.tiling).clamp(0.1, 64.0);
-        let depth = o.displacement.unwrap_or(v.height_scale);
-        let relief = Relief { depth: depth.clamp(0.0, 0.5), level: v.height_level };
-        let mut settings = Settings {
-            yaw: o.yaw.unwrap_or(v.yaw),
-            pitch: o.pitch.unwrap_or(v.pitch),
-            distance: v.distance,
-            target: v.target,
-            tiling,
-            exposure: v.exposure,
-            env_rotation: v.env_rotation,
-            normal_y_flip: v.normal_y_flip,
-            show_env: false,
-            supersample: 2,
-            transparency: v.transparency,
-            alpha_view: v.alpha_view,
-            ..Settings::default()
-        };
+        let depth = o.displacement.unwrap_or(v.height_scale).clamp(0.0, 0.5);
+        let view = materialcraft_engine::View3d { yaw: o.yaw.unwrap_or(v.yaw), pitch: o.pitch.unwrap_or(v.pitch), tiling, height_scale: depth, ..v.clone() };
+        let mut settings = Settings { supersample: view.samples.max(2), ..Settings::for_view(&view) };
 
         let (w, h) = (o.width.unwrap_or(1024).clamp(16, max), o.height.unwrap_or(768).clamp(16, max));
         let maps = Maps::from_usages(self.session.material_maps());
         let (Some((_, scene)), Some(light)) = (&self.scene, &self.light) else { return (w, h, vec![0; (w * h * 4) as usize]) };
-        let displaced = scene.with_relief(&maps, relief, tiling, if o.hq { HQ_TRIANGLES } else { VIEW_TRIANGLES });
+        let triangles = if o.hq { HQ_TRIANGLES } else { materialcraft_render::relief_triangles(&view) };
+        let displaced = materialcraft_render::raised(scene, &maps, &view, triangles);
+
         if o.hq {
             settings.supersample = 3;
             settings.ao_rays = 8;

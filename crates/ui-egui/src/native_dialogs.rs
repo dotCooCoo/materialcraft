@@ -30,6 +30,17 @@ pub(crate) enum Then {
         document: u64,
     },
     SaveImage(Box<Image>),
+    /// The 3D view's frame to write as a PNG file: width, height and RGBA pixels
+    SaveRender(Box<(u32, u32, std::sync::Arc<Vec<u8>>)>),
+    /// The mesh the 3D view shows, to write as an OBJ file
+    ExportGeometry(std::sync::Arc<materialcraft_engine::geom::Mesh>),
+    SaveViewState,
+    /// Apply a saved 3D view state, also switching to its mesh when `with_mesh` is set
+    LoadViewState {
+        with_mesh: bool,
+    },
+    /// The image file the 2D view draws behind transparent pixels
+    BackgroundImage,
     /// The parameters `graph.input.bind` runs with, before the path
     BindInput(Value, GraphRef),
 }
@@ -155,11 +166,36 @@ fn chosen(app: &mut MaterialCraftApp, then: Then, path: &std::path::Path) {
             }
         }
         Then::SaveImage(image) => save_image(app, &image, path),
+        Then::SaveRender(frame) => {
+            let (width, height, pixels) = *frame;
+            let snapshot = materialcraft_engine::DisplaySnapshot::render_to(width, height, pixels, path.to_path_buf());
+            if app.run_with_display_snapshot("view.3d.saveRender", json!({}), snapshot).0.is_some() {
+                app.toast(format!("{} {picked}", tr("Saved")), false);
+            }
+        }
+        Then::ExportGeometry(mesh) => {
+            let snapshot = materialcraft_engine::DisplaySnapshot::geometry_to(mesh, path.to_path_buf());
+            if app.run_with_display_snapshot("view.3d.exportGeometry", json!({}), snapshot).0.is_some() {
+                app.toast(format!("{} {picked}", tr("Saved")), false);
+            }
+        }
+        Then::SaveViewState => {
+            if app.run("view.3d.saveState", json!({"path": picked})).is_some() {
+                app.toast(format!("{} {picked}", tr("Saved")), false);
+            }
+        }
+        Then::LoadViewState { with_mesh } => {
+            app.run("view.3d.loadState", json!({"path": picked, "mesh": with_mesh}));
+        }
+        Then::BackgroundImage => {
+            app.run("view.2d", json!({"background": picked}));
+        }
         Then::BindInput(mut parameters, target) => {
             if GraphRef::active(app) != target {
                 not_applied(app);
                 return;
             }
+
             parameters["path"] = json!(picked);
             app.run("graph.input.bind", parameters);
         }
@@ -176,10 +212,12 @@ fn save_to(app: &mut MaterialCraftApp, document: u64, copy: bool, picked: &str) 
     if app.session.document_id != document && app.run("package.activate", json!({"document": document})).is_none() {
         return false;
     }
+
     let path = materialcraft_engine::file_cmds::package_path(picked);
     if app.run(if copy { "file.saveCopyAs" } else { "file.save" }, json!({"path": path})).is_none() {
         return false;
     }
+
     if !copy {
         app.ui.add_recent(&path);
     }

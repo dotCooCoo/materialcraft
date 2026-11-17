@@ -43,7 +43,7 @@ Every known shortfall, most important first. Pick from the top.
 | # | Gap | Evidence | Impact | Estimate | Parity doc |
 |---:|---|---|---|---:|---|
 | 1 | Node library breadth | 227 nodes vs. ~400 in the reference library | Recipes that need scan processing, more grunges, splines or SDF shapes | 30 h | target-app-parity (Node library) |
-| 2 | GPU 3D view with tessellation and lights | CPU renderer with parallax only | Displacement previews, light setups | 12 h | target-app-parity (3D view) |
+| 2 | GPU 3D view and a path tracer | The CPU renderer has tessellation, lights and shadows, but a large or finely tessellated view takes tens of milliseconds a frame; no ground plane, one material per mesh | Smooth navigation at high resolution, reference-quality renders | 12 h | target-app-parity (3D view) |
 | 3 | Mesh-based generators and bakers | None | Workflows that start from a mesh | 15 h | target-app-parity (Node library) |
 | 4 | Portable materials over MCP | `.mcmat` export runs from the app and the CLI; the MCP workspace sandbox refuses `file.*` commands and has no `material_export` tool | Sandboxed agents can't hand a material to TextureCraft | 1 h | target-app-parity (Files) |
 | 5 | Function loops and reusable functions | Functions live on one parameter or processor | Iterative effects; sharing logic between nodes | 5 h | target-app-parity (Function graphs) |

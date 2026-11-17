@@ -124,7 +124,7 @@ impl MaterialCraftApp {
             #[cfg(not(target_arch = "wasm32"))]
             window_layout: None,
             keymap: menus::keymap(craft_keymap::Platform::current()),
-            // The desktop sends Copy, Cut and Paste events in place of their key presses and the web sends both: the option lets them run their commands
+            // Accept clipboard events without duplicating web key commands
             dispatcher: craft_keymap::egui::Dispatcher::new().with_repeat(true).with_clipboard_events(true),
             system_clipboard: None,
             fonts: fonts::UiFonts::default(),
@@ -133,6 +133,13 @@ impl MaterialCraftApp {
         };
         i18n::set_language(&app.ui.prefs.language);
         app.apply_prefs();
+
+        // A session that has not touched its 3D view starts from the saved default
+        if let Some(view) = &app.session.default_view3d
+            && app.session.view3d == materialcraft_engine::View3d::default()
+        {
+            app.session.view3d = view.clone();
+        }
         app
     }
 
@@ -152,10 +159,32 @@ impl MaterialCraftApp {
             self.session.set_camera_prefs(self.ui.prefs.camera);
         }
 
+        // A saved default is a file like any other: its numbers are put in range before use
+        let default_view = self.ui.prefs.default_view3d.clone().map(|view| {
+            let mut view = view.sanitized();
+            view.target = self.session.camera.clamp_target(view.target);
+            view
+        });
+        if self.session.default_view3d != default_view {
+            self.session.default_view3d = default_view;
+        }
         let p = if self.ui.prefs.preview_size == 0 { None } else { Some(self.ui.prefs.preview_size.clamp(64, 8192)) };
         if self.session.preview_size != p {
             let _ = materialcraft_engine::execute(&mut self.session, "view.previewSize", &serde_json::json!({"size": p.unwrap_or(0)}));
         }
+    }
+
+    /// Run one command with a displayed snapshot and release the handoff before returning
+    pub(crate) fn run_with_display_snapshot(
+        &mut self,
+        id: &str,
+        params: Value,
+        snapshot: materialcraft_engine::DisplaySnapshot,
+    ) -> (Option<Value>, Option<materialcraft_engine::DisplaySnapshot>) {
+        self.session.begin_display_handoff(snapshot);
+        let result = self.run(id, params);
+        let output = self.session.finish_display_handoff();
+        (result, output)
     }
 
     /// Run an engine command, reporting errors as toasts. Returns the result on success
@@ -234,6 +263,9 @@ impl MaterialCraftApp {
                 if id == "view.previewSize" {
                     self.ui.prefs.preview_size = self.session.preview_size.unwrap_or(0);
                 }
+                if id == "view.3d.saveDefault" {
+                    self.ui.prefs.default_view3d = self.session.default_view3d.clone();
+                }
                 if id == "library.cache.configure" {
                     self.ui.prefs.library_cache = self.session.library_cache_prefs;
                 }
@@ -311,6 +343,7 @@ impl MaterialCraftApp {
         if self.pattern_editor.as_ref().is_some_and(|editor| editor.current(self).is_none()) {
             self.pattern_editor = None;
         }
+        crate::view3d::clear_stale_inspection(self);
     }
 
     pub fn toast(&mut self, text: impl Into<String>, error: bool) {

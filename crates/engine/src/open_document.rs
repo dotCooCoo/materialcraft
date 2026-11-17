@@ -83,7 +83,8 @@ impl OpenDocument {
         Some(label)
     }
 
-    pub(crate) fn new(id: u64, pkg: Package, path: Option<String>) -> Self {
+    /// A document that was just opened, with the 3D view a new document starts from
+    pub(crate) fn new(id: u64, pkg: Package, path: Option<String>, view3d: View3d) -> Self {
         Self {
             id,
             material_preview: MaterialPreview::for_graph(&pkg, 0),
@@ -95,7 +96,7 @@ impl OpenDocument {
             annotation_selection: None,
             annotation_target: Default::default(),
             view2d: View2d::default(),
-            view3d: View3d::default(),
+            view3d,
             load_warnings: Vec::new(),
             clipboard: None,
             embedded_clipboard: None,
@@ -127,6 +128,7 @@ impl OpenDocument {
             embedded_clipboard,
             history
         );
+
         // A worker from the previous document must never publish into this one
         session.cook_epoch = session.cook_epoch.wrapping_add(1);
         session.clear_preview_results();

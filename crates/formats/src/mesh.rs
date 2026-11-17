@@ -61,6 +61,38 @@ fn finish(positions: Vec<Vec3>, normals: Option<Vec<Vec3>>, uvs: Vec<Vec2>, indi
     Mesh::from_parts(positions, normals, uvs, indices, "material").map_err(|e| bad(e.to_string()))
 }
 
+/// `mesh` as Wavefront OBJ text: positions, texture coordinates, normals and triangles
+pub fn obj_text(mesh: &Mesh) -> String {
+    use std::fmt::Write;
+
+    let mut text = String::from("# MaterialCraft mesh\n");
+    for position in &mesh.positions {
+        let _ = writeln!(text, "v {} {} {}", position.x, position.y, position.z);
+    }
+    // OBJ counts V up from the bottom; the mesh counts it down from the top
+    for uv in &mesh.uvs {
+        let _ = writeln!(text, "vt {} {}", uv.x, 1.0 - uv.y);
+    }
+    for normal in &mesh.normals {
+        let _ = writeln!(text, "vn {} {} {}", normal.x, normal.y, normal.z);
+    }
+
+    let (textured, shaded) = (mesh.uvs.len() == mesh.positions.len(), mesh.normals.len() == mesh.positions.len());
+    let corner = |index: u32| {
+        let number = index + 1;
+        match (textured, shaded) {
+            (true, true) => format!("{number}/{number}/{number}"),
+            (true, false) => format!("{number}/{number}"),
+            (false, true) => format!("{number}//{number}"),
+            (false, false) => number.to_string(),
+        }
+    };
+    for triangle in mesh.indices.as_chunks::<3>().0 {
+        let _ = writeln!(text, "f {} {} {}", corner(triangle[0]), corner(triangle[1]), corner(triangle[2]));
+    }
+    text
+}
+
 /// Parse a mesh file by extension.
 pub fn load_mesh(name: &str, bytes: &[u8]) -> Result<Mesh> {
     let extension = name.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).unwrap_or_default();
@@ -226,6 +258,28 @@ fn box_uvs(mesh: &Mesh) -> Vec<Vec2> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_mesh_written_as_obj_loads_back_as_it_was() {
+        let mesh = materialcraft_geom::primitives::torus(1.0, 0.35, 12, 6);
+
+        let loaded = load_mesh("torus.obj", obj_text(&mesh).as_bytes()).unwrap();
+
+        assert_eq!((loaded.triangle_count(), loaded.vertex_count()), (mesh.triangle_count(), mesh.vertex_count()));
+
+        // Compare reindexed meshes within their own centered, scaled bounds
+        let (loaded_low, loaded_high) = loaded.bounds();
+        let (mesh_low, mesh_high) = mesh.bounds();
+        let scale = (loaded_high - loaded_low).length() / (mesh_high - mesh_low).length();
+        let (loaded_center, mesh_center) = ((loaded_low + loaded_high) * 0.5, (mesh_low + mesh_high) * 0.5);
+
+        for (&loaded_corner, &mesh_corner) in loaded.indices.iter().zip(&mesh.indices) {
+            let (a, b) = (loaded_corner as usize, mesh_corner as usize);
+            assert!((loaded.positions[a] - loaded_center - (mesh.positions[b] - mesh_center) * scale).length() < 1e-4);
+            assert!((loaded.normals[a] - mesh.normals[b]).length() < 1e-4);
+            assert!((loaded.uvs[a] - mesh.uvs[b]).length() < 1e-5, "the texture is not flipped on the way");
+        }
+    }
 
     #[test]
     fn obj_quad_loads_with_uvs_and_tangents() {

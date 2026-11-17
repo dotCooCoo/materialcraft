@@ -6,7 +6,7 @@
 
 use crate::{FormatError, Result};
 use craft_svg::tree::{self, ImageResolver, Limits, draw, usvg};
-use materialcraft_image::{Image, Kind, MAX_SIDE, srgb_to_linear};
+use craft_texture::{Image, Kind, MAX_SIDE, srgb_to_linear};
 
 /// Largest SVG file (unpacked when SVGZ).
 const MAX_BYTES: usize = 16 << 20;
@@ -82,7 +82,7 @@ mod tests {
 
         let left = image.get(0, 0, false);
 
-        assert_eq!((image.w, image.h), (4, 2));
+        assert_eq!((image.width(), image.height()), (4, 2));
         assert!((left[0] - 1.0).abs() < 1e-3 && left[1].abs() < 1e-3 && (left[3] - 1.0).abs() < 1e-3, "{left:?}");
         assert_eq!(image.get(3, 1, false)[3], 0.0);
     }

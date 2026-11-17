@@ -9,8 +9,8 @@ them). Everything below the UI is plain Rust with no UI toolkit and builds for
 ```text
 L0  core      document model: Package → Graph → Node / Connection / Frame / Comment / Pin / ExposedParameter;
               Value (float, vectors, int, bool, color, enum, text, curve, gradient, function graph)
-L0  image     Image: grayscale or RGBA f32 planes behind an Arc (copy-on-write, free to share);
-              wrap/clamp sampling, bilinear, box/bilinear resampling, sRGB, 8-bit display
+L0  image     the craft-texture crate from storytold/craft-libs: grayscale or RGBA f32 planes behind an
+              Arc (free to share); repeat/clamp sampling, bilinear, box/bilinear resampling, sRGB, 8-bit display
 L0  geom      meshes, primitives (rounded cube, sphere, cylinder, plane, torus, material ball), BVH, camera
 L1  nodes     29 main-graph entries (NodeDefinition), 85 function operations, four pattern node kinds;
               shared image operations and iterative function/pattern execution

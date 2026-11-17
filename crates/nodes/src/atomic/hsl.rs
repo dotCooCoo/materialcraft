@@ -1,7 +1,7 @@
 use super::ATOMIC;
 use crate::ops;
 use crate::{CookContext, CookResult, NodeDefinition, node};
-use materialcraft_image::Kind;
+use craft_texture::Kind;
 
 pub(super) fn definition() -> NodeDefinition {
     node("hsl", "HSL", ATOMIC)

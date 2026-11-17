@@ -1,7 +1,7 @@
 use super::{ATOMIC, direction};
 use crate::ops;
 use crate::{CookContext, CookResult, NodeDefinition, node};
-use materialcraft_image::{Image, Kind};
+use craft_texture::{Image, Kind};
 
 pub(super) fn definition() -> NodeDefinition {
     node("emboss", "Emboss", ATOMIC)
@@ -25,7 +25,7 @@ fn emboss(context: &CookContext) -> CookResult {
     let intensity = context.f("intensity") * context.w as f32 / INTENSITY_REFERENCE_WIDTH;
     let (highlight, shadow) = (context.v4("highlight"), context.v4("shadow"));
 
-    Ok(vec![Image::generate(context.w, context.h, input.kind, |x, y| {
+    Ok(vec![Image::generate(context.w, context.h, input.kind(), |x, y| {
         let (gx, gy) = ops::slope(&height_map, x as i64, y as i64, context.tile);
         let lighting = (-(gx * light_x + gy * light_y) * intensity).clamp(-1.0, 1.0);
         let pixel = input.get(x as i64, y as i64, false);

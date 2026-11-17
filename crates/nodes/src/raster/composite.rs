@@ -1,11 +1,11 @@
-use materialcraft_image::{Image, Kind, luminance};
+use craft_texture::{Image, Kind, luminance};
 
 use crate::CookContext;
 
 pub(crate) fn composite(context: &CookContext, foreground: impl Fn(u32, u32) -> [f32; 4] + Sync) -> Image {
     let kind = if context.b("color_mode") { Kind::Color } else { Kind::Gray };
     let background = match context.input(0) {
-        Some(image) if image.kind == kind => image.resize(context.w, context.h, context.tile),
+        Some(image) if image.kind() == kind => image.resize(context.w, context.h, context.tile),
 
         // An incompatible connection replaces the constant background with empty pixels
         Some(_) => Image::filled(1, 1, kind, [0.0; 4]),

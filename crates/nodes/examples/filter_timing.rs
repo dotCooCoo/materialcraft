@@ -1,8 +1,8 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
+use craft_texture::{Image, Kind};
 use materialcraft_core::{OutputFormat, Value};
-use materialcraft_image::{Image, Kind};
 use materialcraft_nodes::{CookContext, find, resolve_params};
 use std::{collections::BTreeMap, time::Instant};
 

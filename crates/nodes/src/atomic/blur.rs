@@ -1,6 +1,6 @@
 use super::{ATOMIC, box_filter};
 use crate::{CookContext, CookResult, NodeDefinition, node};
-use materialcraft_image::Kind;
+use craft_texture::Kind;
 
 pub(super) fn definition() -> NodeDefinition {
     node("blur", "Blur", ATOMIC)

@@ -79,15 +79,21 @@ fn package_save_and_open_round_trip() {
     let before = s.pkg.clone();
     run(&mut s, "file.newPackage", json!({}));
     run(&mut s, "file.open", json!({"path": path.to_str().unwrap()}));
+
     assert_eq!(s.pkg.graphs[0].nodes.len(), before.graphs[0].nodes.len());
+
     let out = dir.join("tex");
     let r = run(&mut s, "file.export", json!({"dir": out.to_str().unwrap(), "format": "png", "depth": 8}));
+
     assert_eq!(r["files"].as_array().unwrap().len(), 1);
+
     let small = dir.join("small");
     run(&mut s, "file.export", json!({"dir": small.to_str().unwrap(), "format": "png", "depth": 8, "size": 64}));
     let file = std::fs::read_dir(&small).unwrap().next().unwrap().unwrap().path();
     let img = materialcraft_formats::decode(&std::fs::read(file).unwrap(), false).unwrap();
-    assert_eq!((img.w, img.h), (64, 64));
+
+    assert_eq!((img.width(), img.height()), (64, 64));
+
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -101,7 +107,7 @@ fn export_size_keeps_proportions_and_clamps() {
     let dims = |s: &Session, size: Value| {
         let request = ExportRequest::from_params(s, &json!({"size": size})).unwrap();
         let files = materialcraft_engine::file_cmds::export_outputs(s, &request).unwrap();
-        files.iter().map(|f| materialcraft_formats::decode(&f.bytes, false).unwrap()).map(|i| (i.w, i.h)).collect::<Vec<_>>()
+        files.iter().map(|f| materialcraft_formats::decode(&f.bytes, false).unwrap()).map(|i| (i.width(), i.height())).collect::<Vec<_>>()
     };
     let parsed = |s: &Session, size: Value| ExportRequest::from_params(s, &json!({"size": size})).map(|request| request.size);
 
@@ -113,11 +119,13 @@ fn export_size_keeps_proportions_and_clamps() {
     assert_eq!(parsed(&s, json!(0)).unwrap(), None);
     assert_eq!(parsed(&s, json!(u64::MAX)).unwrap(), Some(ExportSize::LargerSide(u32::MAX)));
     assert_eq!(parsed(&s, json!([1, u64::MAX])).unwrap(), Some(ExportSize::Exact([1, u32::MAX])));
+
     for invalid in [json!("large"), json!([64]), json!([64, "wide"]), json!([64, 64, 64])] {
         assert!(parsed(&s, invalid.clone()).is_err(), "{invalid}");
     }
 
     s.pkg.graphs[0].size = [u32::MAX, u32::MAX];
+
     assert!(dims(&s, json!(32)).iter().all(|d| *d == (32, 32)));
     assert!(dims(&s, json!([1, u64::MAX])).iter().all(|d| *d == (16, 8192)), "sides clamp to 16..8192");
 }
@@ -376,17 +384,20 @@ fn camera_prefs_bound_the_pan_and_survive_hostile_values() {
 
 #[test]
 fn reimported_bitmap_shows_new_pixels() {
+    use craft_texture::{Image, Kind};
     use materialcraft_formats::{Depth, encode};
-    use materialcraft_image::{Image, Kind};
     let bmp = |v: f32| encode(&Image::filled(4, 4, Kind::Color, [v, v, v, 1.0]), "bmp", Depth::U8, true).unwrap();
     let (dark, light) = (bmp(0.1), bmp(0.9));
+
     assert_eq!(dark.len(), light.len(), "same-size files are the case under test");
+
     let mut s = sample_session();
     materialcraft_engine::file_cmds::add_resource(&mut s, "tex.bmp", dark, Some("tex")).unwrap();
-    let before = s.resource_decoder()("tex").unwrap().data[0];
+    let before = s.resource_decoder()("tex").unwrap().data()[0];
     s.undo();
     materialcraft_engine::file_cmds::add_resource(&mut s, "tex.bmp", light, Some("tex")).unwrap();
-    let after = s.resource_decoder()("tex").unwrap().data[0];
+    let after = s.resource_decoder()("tex").unwrap().data()[0];
+
     assert!(after - before > 0.5, "{before} -> {after}");
 }
 
@@ -422,7 +433,7 @@ fn a_wire_splits_with_a_reroute_dot_and_deletes() {
 
 #[test]
 fn every_template_is_opaque_in_the_3d_view() {
-    // The 3D view sees through a base color whose alpha is below one: the templates must not
+    // Template base colors must stay opaque in the 3D view
     let mut s = sample_session();
     s.preview_size = Some(64);
     for (id, _) in materialcraft_engine::samples::TEMPLATES {
@@ -430,7 +441,8 @@ fn every_template_is_opaque_in_the_3d_view() {
         s.cook();
         for (usage, img) in s.material_maps() {
             if usage == "baseColor" && !img.is_gray() {
-                let min = img.data.chunks(4).map(|p| p[3]).fold(f32::INFINITY, f32::min);
+                let min = img.data().chunks(4).map(|p| p[3]).fold(f32::INFINITY, f32::min);
+
                 assert!(min >= 0.999, "{id}: base color alpha goes down to {min}");
             }
         }

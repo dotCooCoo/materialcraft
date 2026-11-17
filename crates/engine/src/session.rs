@@ -3,9 +3,9 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
+use craft_texture::Image;
 use materialcraft_core::{Graph, NodeId, Package, ResourceBytes};
 use materialcraft_eval::{Cache, Cooked, Options};
-use materialcraft_image::Image;
 use serde::{Deserialize, Serialize};
 
 use crate::snapshot::Snapshot;
@@ -426,29 +426,29 @@ impl Session {
 
     /// A decoder for the package's bitmap resources (memoized, shareable with worker threads).
     pub fn resource_decoder(&self) -> impl Fn(&str) -> Option<Image> + Sync + Send + 'static {
-        let mut res: Vec<(String, ResourceBytes)> = self.pkg.resources.iter().map(|r| (r.name.clone(), r.bytes.clone())).collect();
-        res.extend(
+        let mut resources: Vec<(String, ResourceBytes)> = self.pkg.resources.iter().map(|r| (r.name.clone(), r.bytes.clone())).collect();
+        resources.extend(
             self.pkg
                 .dependencies
                 .iter()
                 .flat_map(|(file, package)| package.resources.iter().map(move |resource| (format!("{file}\0{}", resource.name), resource.bytes.clone()))),
         );
-        let memo = self.decoded.clone();
+        let decoded = self.decoded.clone();
 
         // Release decoded images of deleted or replaced resources
-        let hashes = res.iter().map(|(_, bytes)| bytes.content_hash()).collect();
-        memo.lock().unwrap_or_else(PoisonError::into_inner).retain_resources(&hashes);
+        let hashes = resources.iter().map(|(_, bytes)| bytes.content_hash()).collect();
+        decoded.lock().unwrap_or_else(PoisonError::into_inner).retain_resources(&hashes);
         move |requested: &str| {
-            let (name, linear) = materialcraft_image::split_resource_key(requested);
-            let (_, bytes) = res.iter().find(|(n, _)| n == name)?;
+            let (name, linear) = craft_texture::split_resource_key(requested);
+            let (_, bytes) = resources.iter().find(|(name_candidate, _)| name_candidate == name)?;
             let key = (bytes.content_hash(), linear);
-            if let Some(i) = memo.lock().unwrap_or_else(PoisonError::into_inner).get(&key) {
-                return Some(i);
+            if let Some(image) = decoded.lock().unwrap_or_else(PoisonError::into_inner).get(&key) {
+                return Some(image);
             }
 
-            let img = materialcraft_formats::decode(bytes.as_slice(), linear).ok()?;
-            memo.lock().unwrap_or_else(PoisonError::into_inner).insert(key, img.clone());
-            Some(img)
+            let image = materialcraft_formats::decode(bytes.as_slice(), linear).ok()?;
+            decoded.lock().unwrap_or_else(PoisonError::into_inner).insert(key, image.clone());
+            Some(image)
         }
     }
 

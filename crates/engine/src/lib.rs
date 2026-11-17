@@ -88,10 +88,10 @@ pub use color_space::ColorSpace;
 pub use export_request::ExportRequest;
 pub use export_size::ExportSize;
 
+pub use craft_texture as image;
 pub use materialcraft_core as core;
 pub use materialcraft_eval as eval;
 pub use materialcraft_formats as formats;
-pub use materialcraft_image as image;
 pub use materialcraft_nodes as nodes;
 
 mod engine_error;

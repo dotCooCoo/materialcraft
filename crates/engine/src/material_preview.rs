@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::{Hash, Hasher};
 
+use craft_texture::Image;
 use materialcraft_core::{MaterialChannel, Package};
-use materialcraft_image::Image;
 use serde::{Deserialize, Serialize};
 
 use crate::{MaterialSource, Session};

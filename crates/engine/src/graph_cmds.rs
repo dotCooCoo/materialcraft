@@ -149,26 +149,27 @@ fn format(s: &mut Session, p: &J) -> Result<J> {
     })
 }
 
-fn cook(s: &mut Session, p: &J) -> Result<J> {
-    let index = match p.get("graph").filter(|graph| !graph.is_null()) {
-        None => s.graph,
+fn cook(session: &mut Session, parameters: &J) -> Result<J> {
+    let index = match parameters.get("graph").filter(|graph| !graph.is_null()) {
+        None => session.graph,
         Some(graph) => {
             let index = graph.as_u64().and_then(|index| usize::try_from(index).ok()).ok_or_else(|| bad("graph.cook", "`graph` is a graph index"))?;
-            let graph = s.pkg.graph(index)?;
+            let graph = session.pkg.graph(index)?;
             if graph.function.is_some() {
                 return Err(bad("graph.cook", "a Function Graph has no outputs to compute"));
             }
+
             index
         }
     };
-    let cooked = if index != s.graph || boolp(p, "full") == Some(true) { s.cook_full(index) } else { s.cook().clone() };
-    let g = s.pkg.graph(index)?;
+    let cooked = if index != session.graph || boolp(parameters, "full") == Some(true) { session.cook_full(index) } else { session.cook().clone() };
+    let graph = session.pkg.graph(index)?;
     Ok(json!({
         "ms": cooked.ms,
-        "nodes": cooked.nodes.iter().map(|(id, r)| {
-            let n = g.node(*id).ok();
-            json!({"id": id.0, "def": n.map(|n| n.def.clone()), "ms": r.ms, "cached": r.cached, "error": r.error,
-                   "size": r.outputs.first().and_then(materialcraft_eval::NodeOutput::as_image).map(|i| [i.w, i.h])})
+        "nodes": cooked.nodes.iter().map(|(id, result)| {
+            let node = graph.node(*id).ok();
+            json!({"id": id.0, "def": node.map(|node| node.def.clone()), "ms": result.ms, "cached": result.cached, "error": result.error,
+                   "size": result.outputs.first().and_then(materialcraft_eval::NodeOutput::as_image).map(|image| [image.width(), image.height()])})
         }).collect::<Vec<_>>(),
     }))
 }

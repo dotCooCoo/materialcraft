@@ -1,7 +1,7 @@
 use crate::{Cache, Cooked, Options, now_ms};
 use crate::{node_execution::cook_node, prepared_graph::PreparedGraph};
+use craft_texture::Image;
 use materialcraft_core::{Package, Value};
-use materialcraft_image::Image;
 use std::{
     collections::BTreeMap,
     sync::{Mutex, atomic::Ordering},
@@ -19,7 +19,7 @@ pub fn cook(package: &Package, graph_index: usize, options: &Options, cache: &Mu
             .input_images
             .iter()
             .filter_map(|(id, resource)| {
-                Some((id.clone(), (options.resource)(&materialcraft_image::resource_key(resource, graph.input_images_linear.contains(id)))?))
+                Some((id.clone(), (options.resource)(&craft_texture::resource_key(resource, graph.input_images_linear.contains(id)))?))
             })
             .collect();
         inputs.extend(options.inputs.iter().map(|(name, value)| (name.clone(), value.clone())));
@@ -47,6 +47,7 @@ pub fn cook(package: &Package, graph_index: usize, options: &Options, cache: &Mu
             cooked.cancelled = true;
             break;
         }
+
         let Some(node) = prepared.index.node(id) else { continue };
 
         let result = cook_node(package, graph_index, &prepared, node, &cooked, &variables, options, cache);

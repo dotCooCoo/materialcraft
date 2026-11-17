@@ -1,6 +1,6 @@
 use super::ATOMIC;
 use crate::{CookContext, CookResult, NodeDefinition, node};
-use materialcraft_image::{Image, Kind, luminance};
+use craft_texture::{Image, Kind, luminance};
 
 pub(super) fn definition() -> NodeDefinition {
     node("uniform", "Uniform color", ATOMIC)

@@ -1,6 +1,6 @@
 use super::ATOMIC;
 use crate::{CookContext, CookResult, NodeDefinition, node};
-use materialcraft_image::{Image, Kind};
+use craft_texture::{Image, Kind};
 
 pub(super) fn definition() -> NodeDefinition {
     node("gradient_dynamic", "Gradient (Dynamic)", ATOMIC)
@@ -23,7 +23,7 @@ fn gradient_dynamic(context: &CookContext) -> CookResult {
     let position = context.f("position");
     let vertical = context.i("orientation") == 1;
 
-    Ok(vec![Image::generate(context.w, context.h, gradient.kind, |x, y| {
+    Ok(vec![Image::generate(context.w, context.h, gradient.kind(), |x, y| {
         let intensity = input.get_gray(i64::from(x), i64::from(y), false).clamp(0.0, 1.0);
         if vertical { gradient.sample(position, intensity, false) } else { gradient.sample(intensity, position, false) }
     })])

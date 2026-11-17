@@ -1,5 +1,5 @@
+use craft_texture::{Image, Kind};
 use materialcraft_core::{Curve, FunctionGraph, Gradient, Value};
-use materialcraft_image::{Image, Kind};
 use std::collections::BTreeMap;
 
 /// Where a cook runs: output size, seed, tiling, inputs and resolved parameters
@@ -98,7 +98,7 @@ impl CookContext<'_> {
 
     /// The kind an "Any" output takes: the main input's, else `fallback`
     pub fn main_kind(&self, fallback: Kind) -> Kind {
-        self.inputs.iter().flatten().next().map_or(fallback, |i| i.kind)
+        self.inputs.iter().flatten().next().map_or(fallback, |i| i.kind())
     }
 
     /// A gray image from `f(u, v)` at the output size

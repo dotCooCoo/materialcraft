@@ -186,7 +186,7 @@ See [the primitive workflow](docs/atomic-workflow.md) for usage, validation scop
 The [catalog status](docs/node-catalog-parity.md) records implemented behavior and remaining work.
 Full numerical compatibility and arbitrary SBS interoperability remain unestablished.
 
-**Workspace:** `crates/{core, image, geom, nodes, eval, formats, engine, render, automation, ui-egui}`
+**Workspace:** `crates/{core, geom, nodes, eval, formats, engine, render, automation, ui-egui}`
 and `apps/{materialcraft, materialcraft-cli, materialcraft-web}`. The egui frontend is its own
 crate, so the UI can be swapped without touching the engine; [`docs/architecture.md`](docs/architecture.md)
 explains how it fits together.

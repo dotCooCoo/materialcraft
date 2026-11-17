@@ -1292,13 +1292,14 @@ fn named_outputs_select_without_loading_and_open_on_double_click() {
     app.run("view.2d", json!({"node": source})).unwrap();
     app.run("graph.select", json!({"ids": [source]})).unwrap();
     app.session.cook();
-    let material = app.session.material_maps().into_iter().map(|(name, image)| (name, image.data.clone())).collect::<Vec<_>>();
+    let material = app.session.material_maps().into_iter().map(|(name, image)| (name, image.shared_data().clone())).collect::<Vec<_>>();
     let view3d = serde_json::to_value(&app.session.view3d).unwrap();
     let mut harness = harness(app, 1600.0, 960.0);
     settle(&mut harness, 5);
     let query = By::new().role(egui::accesskit::Role::TreeItem).label("Base Color");
     let position = harness.get(query.clone()).rect().center();
     click_canvas(&mut harness, position);
+
     assert_eq!(harness.state().session.selection, vec![materialcraft_engine::core::NodeId(source)]);
     assert_eq!(harness.state().session.view2d.node, Some(materialcraft_engine::core::NodeId(source)));
     assert!(!harness.state().graph.ports.iter().any(|port| port.node.0 == output && port.output));
@@ -1313,12 +1314,16 @@ fn named_outputs_select_without_loading_and_open_on_double_click() {
         harness.step();
     }
     settle(&mut harness, 3);
+
     assert_eq!(harness.state().session.view2d.node, Some(materialcraft_engine::core::NodeId(output)));
     assert_eq!(harness.state().session.selection, vec![materialcraft_engine::core::NodeId(output)]);
     assert!(harness.query_all(By::new().label("Identifier")).next().is_some());
     assert_eq!(serde_json::to_value(&harness.state().session.view3d).unwrap(), view3d);
-    let current = harness.state().session.material_maps().into_iter().map(|(name, image)| (name, image.data.clone())).collect::<Vec<_>>();
+
+    let current = harness.state().session.material_maps().into_iter().map(|(name, image)| (name, image.shared_data().clone())).collect::<Vec<_>>();
+
     assert_eq!(current, material);
+
     save(&mut harness, &directory, "named-output-preview");
 }
 

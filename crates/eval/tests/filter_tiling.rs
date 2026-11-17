@@ -1,6 +1,6 @@
+use craft_texture::Image;
 use materialcraft_core::{Graph, OutputFormat, Package, ParameterInheritance, Value};
 use materialcraft_eval::{Cache, Options, cook};
-use materialcraft_image::Image;
 use std::sync::Mutex;
 
 #[test]

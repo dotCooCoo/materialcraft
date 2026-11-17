@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 materialcraft-core = { workspace = true }
-materialcraft-image = { workspace = true }
+craft-texture = { workspace = true }
 materialcraft-nodes = { workspace = true }
 materialcraft-eval = { workspace = true }
 materialcraft-formats = { workspace = true }

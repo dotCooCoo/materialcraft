@@ -1,6 +1,6 @@
 use super::{ATOMIC, box_filter, direction};
 use crate::{CookContext, CookResult, NodeDefinition, node};
-use materialcraft_image::{Image, Kind};
+use craft_texture::{Image, Kind};
 
 pub(super) fn definition() -> NodeDefinition {
     node("directional_blur", "Directional blur", ATOMIC)
@@ -45,7 +45,7 @@ pub(super) fn blur(context: &CookContext, angle: f32) -> CookResult {
     let edge_weight = (0.5 - (half_samples as f32 - 0.5) * weight).max(0.0);
     let (inverse_width, inverse_height) = (1.0 / context.w as f32, 1.0 / context.h as f32);
 
-    Ok(vec![Image::generate_uv(context.w, context.h, input.kind, |u, v| {
+    Ok(vec![Image::generate_uv(context.w, context.h, input.kind(), |u, v| {
         let mut pixel = [0.0; 4];
         for i in -half_samples..=half_samples {
             let sample_weight = if i.abs() == half_samples { edge_weight } else { weight };

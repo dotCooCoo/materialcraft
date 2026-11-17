@@ -264,15 +264,15 @@ impl Headless {
         Ok(Rendered { width: w, height: h, png })
     }
 
-    fn render_2d(&mut self, o: &RenderOptions, max: u32) -> Result<(u32, u32, Vec<u8>), AutomationError> {
-        let img = match o.node {
-            Some(n) => self.session.cooked.image(NodeId(n), o.port.unwrap_or(0)).ok_or_else(|| bad(format!("node {n} has no cooked output")))?,
+    fn render_2d(&mut self, options: &RenderOptions, maximum_side: u32) -> Result<(u32, u32, Vec<u8>), AutomationError> {
+        let image = match options.node {
+            Some(n) => self.session.cooked.image(NodeId(n), options.port.unwrap_or(0)).ok_or_else(|| bad(format!("node {n} has no cooked output")))?,
             None => self.session.view2d_image().map(|(_, i)| i).ok_or_else(|| bad("nothing to show: the graph has no outputs; pass `node`"))?,
         };
 
-        let (w, h) = (o.width.unwrap_or(img.w).clamp(16, max), o.height.unwrap_or(img.h).clamp(16, max));
-        let img = img.resize(w, h, true);
-        Ok((w, h, img.to_rgba8_display()))
+        let (w, h) = (options.width.unwrap_or(image.width()).clamp(16, maximum_side), options.height.unwrap_or(image.height()).clamp(16, maximum_side));
+        let image = image.resize(w, h, true);
+        Ok((w, h, image.to_rgba8_display()))
     }
 
     fn render_3d(&mut self, o: &RenderOptions, max: u32) -> (u32, u32, Vec<u8>) {

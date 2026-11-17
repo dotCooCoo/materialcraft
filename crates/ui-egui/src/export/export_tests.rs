@@ -77,8 +77,11 @@ fn batch_writes_every_material_graph_at_the_output_size() {
     assert!(export(&mut app, &settings));
 
     assert_eq!(files(&directory), ["New_graph_base_color.png", "New_graph_height.png", "Second_mask.png"]);
+
     let image = materialcraft_engine::formats::decode(&std::fs::read(directory.join("Second_mask.png")).unwrap(), true).unwrap();
-    assert_eq!((image.w, image.h), (64, 32));
+
+    assert_eq!((image.width(), image.height()), (64, 32));
+
     let _ = std::fs::remove_dir_all(directory);
 }
 

@@ -1,6 +1,6 @@
 use super::ATOMIC;
 use crate::{CookContext, CookResult, NodeDefinition, node};
-use materialcraft_image::{Image, Kind};
+use craft_texture::{Image, Kind};
 
 pub(super) fn definition() -> NodeDefinition {
     node("sharpen", "Sharpen", ATOMIC)
@@ -20,7 +20,7 @@ fn sharpen(context: &CookContext) -> CookResult {
     let horizontal = intensity * short_side / context.w.max(1) as f32;
     let vertical = intensity * short_side / context.h.max(1) as f32;
 
-    Ok(vec![Image::generate(context.w, context.h, input.kind, |x, y| {
+    Ok(vec![Image::generate(context.w, context.h, input.kind(), |x, y| {
         let (x, y) = (i64::from(x), i64::from(y));
         let center = input.get(x, y, false);
         let left = input.get_axes(x - 1, y, tile);

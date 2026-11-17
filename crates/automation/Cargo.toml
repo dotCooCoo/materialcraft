@@ -11,12 +11,10 @@ workspace = true
 [dependencies]
 materialcraft-engine = { workspace = true }
 materialcraft-render = { workspace = true }
-materialcraft-formats = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 image = { workspace = true }
-rayon = { workspace = true }
 rmcp = { workspace = true }
 tokio = { workspace = true }
 schemars = { workspace = true }

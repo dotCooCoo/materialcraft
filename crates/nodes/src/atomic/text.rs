@@ -221,7 +221,7 @@ mod tests {
         };
 
         let img = &text(&context).unwrap()[0];
-        let lit = img.data.iter().filter(|value| **value > 0.5).count();
+        let lit = img.data().iter().filter(|value| **value > 0.5).count();
 
         assert!(lit > 300, "{lit} pixels");
 

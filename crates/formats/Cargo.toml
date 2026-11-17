@@ -13,7 +13,7 @@ craft-mime = { workspace = true }
 craft-xml = { workspace = true }
 craft-mcmat = { workspace = true }
 materialcraft-core = { workspace = true }
-materialcraft-image = { workspace = true }
+craft-texture = { workspace = true }
 materialcraft-geom = { workspace = true }
 materialcraft-nodes = { workspace = true }
 craft-mesh = { workspace = true }

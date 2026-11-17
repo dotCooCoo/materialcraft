@@ -8,9 +8,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::{Displacement, Relief};
+use craft_texture::{Image, linear_to_srgb};
 use materialcraft_geom::glam::{Vec2, Vec3};
 use materialcraft_geom::{Bvh, Mesh, OrbitCamera};
-use materialcraft_image::{Image, linear_to_srgb};
 use rayon::prelude::*;
 
 use crate::ibl::{self, EnvImage};
@@ -94,8 +94,9 @@ impl Scene {
             mesh = mesh.subdivided();
         }
 
-        // Pre-filtered so detail finer than the mesh (left to the normal map) does not spike the silhouette
-        let height = height.resize(height.w.min(512), height.h.min(512), true);
+        // Filter detail finer than the mesh to prevent silhouette spikes
+        const MAX_HEIGHT_MAP_SIDE: u32 = 512;
+        let height = height.resize(height.width().min(MAX_HEIGHT_MAP_SIDE), height.height().min(MAX_HEIGHT_MAP_SIDE), true);
         let level = if displacement.level.is_finite() { displacement.level.clamp(0.0, 1.0) } else { 0.0 };
         let depth = if displacement.depth.is_finite() { displacement.depth } else { 0.0 };
         let tiling = if displacement.tiling.is_finite() { displacement.tiling.max(0.01) } else { 1.0 };
@@ -495,52 +496,52 @@ pub fn render(scene: &Scene, maps: &Maps, light: &Lighting, s: &Settings, w: u32
 /// [`render`] that gives up once `cancel` is set (rows not yet started are skipped) and then
 /// returns `None`: a frame the viewer no longer needs (the camera moved, the view was resized)
 /// stops holding the CPU.
-pub fn render_cancellable(scene: &Scene, maps: &Maps, light: &Lighting, s: &Settings, w: u32, h: u32, cancel: &AtomicBool) -> Option<Vec<u8>> {
+pub fn render_cancellable(scene: &Scene, maps: &Maps, light: &Lighting, settings: &Settings, w: u32, h: u32, cancel: &AtomicBool) -> Option<Vec<u8>> {
     let (w, h) = (w.clamp(1, 4096), h.clamp(1, 4096));
-    let cam = camera(scene, s);
+    let camera = camera(scene, settings);
     let aspect = w as f32 / h as f32;
-    let ss = s.supersample.clamp(1, 4);
-    let k = 2f32.powf(s.exposure);
-    let bg_env = light.specular.get(3).or(light.specular.last());
+    let samples_per_axis = settings.supersample.clamp(1, 4);
+    let exposure_scale = 2f32.powf(settings.exposure);
+    let background_environment = light.specular.get(3).or(light.specular.last());
 
     // Key light from the camera's upper left, a little in front of the subject
-    let fwd = cam.ray(Vec2::ZERO, aspect).dir;
-    let right = fwd.cross(Vec3::Y).normalize_or(Vec3::X);
-    let key = (right * -0.6 + right.cross(fwd) * 0.75 - fwd * 0.5).normalize_or_zero();
-    let mut out = vec![0u8; (w * h * 4) as usize];
-    out.par_chunks_mut(w as usize * 4).enumerate().for_each(|(y, row)| {
+    let forward = camera.ray(Vec2::ZERO, aspect).dir;
+    let right = forward.cross(Vec3::Y).normalize_or(Vec3::X);
+    let key = (right * -0.6 + right.cross(forward) * 0.75 - forward * 0.5).normalize_or_zero();
+    let mut output = vec![0u8; (w * h * 4) as usize];
+    output.par_chunks_mut(w as usize * 4).enumerate().for_each(|(y, row)| {
         if cancel.load(Ordering::Relaxed) {
             return;
         }
 
         for x in 0..w as usize {
-            let mut acc = Vec3::ZERO;
-            for sy in 0..ss {
-                for sx in 0..ss {
-                    let px = (x as f32 + (sx as f32 + 0.5) / ss as f32) / w as f32 * 2.0 - 1.0;
-                    let py = 1.0 - (y as f32 + (sy as f32 + 0.5) / ss as f32) / h as f32 * 2.0;
-                    let ray = cam.ray(Vec2::new(px, py), aspect);
-                    let bg = backdrop(Vec2::new(px, py));
-                    let p = Px { key, jitter: jitter(x as u32 * ss + sx, y as u32 * ss + sy) };
-                    let miss = match (s.show_env, bg_env) {
-                        (true, Some(e)) => e.sample(rotate_y(ray.dir, -s.env_rotation)) * k,
-                        _ => bg,
+            let mut accumulated = Vec3::ZERO;
+            for sy in 0..samples_per_axis {
+                for sx in 0..samples_per_axis {
+                    let px = (x as f32 + (sx as f32 + 0.5) / samples_per_axis as f32) / w as f32 * 2.0 - 1.0;
+                    let py = 1.0 - (y as f32 + (sy as f32 + 0.5) / samples_per_axis as f32) / h as f32 * 2.0;
+                    let ray = camera.ray(Vec2::new(px, py), aspect);
+                    let background = backdrop(Vec2::new(px, py));
+                    let p = Px { key, jitter: jitter(x as u32 * samples_per_axis + sx, y as u32 * samples_per_axis + sy) };
+                    let miss = match (settings.show_env, background_environment) {
+                        (true, Some(e)) => e.sample(rotate_y(ray.dir, -settings.env_rotation)) * exposure_scale,
+                        _ => background,
                     };
-                    acc += if s.alpha_view {
+                    accumulated += if settings.alpha_view {
                         // Display values: the alpha as is, the background tone mapped
-                        match shade(scene, maps, light, s, ray.origin, ray.dir, &p) {
+                        match shade(scene, maps, light, settings, ray.origin, ray.dir, &p) {
                             Some(h) => h.color,
                             None => miss.map(|v| linear_to_srgb(aces(v))),
                         }
                     } else {
-                        trace(scene, maps, light, s, ray.origin, ray.dir, &p, k, miss)
+                        trace(scene, maps, light, settings, ray.origin, ray.dir, &p, exposure_scale, miss)
                     };
                 }
             }
 
-            let c = acc / (ss * ss) as f32;
+            let c = accumulated / (samples_per_axis * samples_per_axis) as f32;
             let q = |v: f32| {
-                let d = if s.alpha_view { v } else { linear_to_srgb(aces(v)) };
+                let d = if settings.alpha_view { v } else { linear_to_srgb(aces(v)) };
                 (d.clamp(0.0, 1.0) * 255.0 + 0.5) as u8
             };
             if let Some(px) = row.get_mut(x * 4..x * 4 + 4) {
@@ -548,13 +549,13 @@ pub fn render_cancellable(scene: &Scene, maps: &Maps, light: &Lighting, s: &Sett
             }
         }
     });
-    if cancel.load(Ordering::Relaxed) { None } else { Some(out) }
+    if cancel.load(Ordering::Relaxed) { None } else { Some(output) }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use materialcraft_image::Kind;
+    use craft_texture::Kind;
 
     #[test]
     fn renders_a_material_on_every_scene() {

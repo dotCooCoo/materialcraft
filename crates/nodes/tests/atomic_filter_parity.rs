@@ -1,5 +1,5 @@
+use craft_texture::{Image, Kind};
 use materialcraft_core::{OutputFormat, Value};
-use materialcraft_image::{Image, Kind};
 use materialcraft_nodes::{CookContext, find, resolve_params};
 use std::collections::BTreeMap;
 
@@ -71,7 +71,7 @@ fn sharpen_preserves_finite_hdr_constant() {
 
     let output = cook("sharpen", &[Some(input)], &[("intensity", Value::Float(1.0))], [16, 16], true);
 
-    assert!(output.data.iter().all(|value| value.to_bits() == constant.to_bits()));
+    assert!(output.data().iter().all(|value| value.to_bits() == constant.to_bits()));
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn blur_preserves_finite_hdr_constant() {
 
     let output = cook("blur", &[Some(input)], &[("intensity", Value::Float(64.0))], [16, 16], true);
 
-    assert!(output.data.iter().all(|value| value.is_finite() && (*value - 1.0e38).abs() < 1.0e32));
+    assert!(output.data().iter().all(|value| value.is_finite() && (*value - 1.0e38).abs() < 1.0e32));
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn sharpen_has_center_gain_and_clamps_negative_lobes() {
     let output = cook("sharpen", &[Some(input)], &[("intensity", Value::Float(1.0))], [16, 16], true);
 
     assert_eq!(output.get_gray(8, 8, false), 5.0);
-    assert!(output.data.iter().all(|value| *value >= 0.0));
+    assert!(output.data().iter().all(|value| *value >= 0.0));
 }
 
 #[test]

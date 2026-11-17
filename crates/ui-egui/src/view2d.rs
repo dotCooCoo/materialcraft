@@ -38,27 +38,34 @@ pub fn title(app: &MaterialCraftApp) -> String {
     format!("{} - {}", name.unwrap_or_default(), tr("2D View"))
 }
 
-fn rgba8(img: &Image, channel: &str) -> Vec<u8> {
-    let base = img.to_rgba8_display();
-    let pick = match channel {
+fn rgba8(image: &Image, channel: &str) -> Vec<u8> {
+    let mut pixels = image.to_rgba8_display();
+    let selected = match channel {
         "r" => Some(0),
         "g" => Some(1),
         "b" => Some(2),
         "a" => Some(3),
         _ => None,
     };
-    match pick {
-        Some(k) if img.kind == Kind::Color => base.chunks(4).flat_map(|p| [p[k], p[k], p[k], 255]).collect(),
-        _ => base,
+
+    if let Some(channel) = selected
+        && image.kind() == Kind::Color
+    {
+        for pixel in pixels.as_chunks_mut::<4>().0 {
+            let value = pixel[channel];
+            pixel.copy_from_slice(&[value, value, value, u8::MAX]);
+        }
     }
+
+    pixels
 }
 
 pub fn show(app: &mut MaterialCraftApp, ui: &mut Ui) {
-    let tk = Tokens::get(ui.ctx());
-    let ctx = ui.ctx().clone();
+    let theme = Tokens::get(ui.ctx());
+    let context = ui.ctx().clone();
 
     // Toolbar
-    egui::Frame::NONE.fill(tk.panel).inner_margin(egui::Margin::symmetric(6, 3)).show(ui, |ui| {
+    egui::Frame::NONE.fill(theme.panel).inner_margin(egui::Margin::symmetric(6, 3)).show(ui, |ui| {
         ui.horizontal(|ui| {
             crate::preview_resolution::show(app, ui);
             for (c, label) in [("rgba", "RGBA"), ("r", "R"), ("g", "G"), ("b", "B"), ("a", "A")] {
@@ -87,89 +94,90 @@ pub fn show(app: &mut MaterialCraftApp, ui: &mut Ui) {
             }
         });
     });
-    let Some((id, img)) = app.session.view2d_image().map(|(id, i)| (id, i.clone())) else {
-        let (r, resp) = ui.allocate_exact_size(ui.available_size(), Sense::hover());
-        crate::widgets::name(&resp, egui::Role::Image, "2D view");
-        ui.painter().rect_filled(r, 0.0, tk.viewport);
-        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, tr("Click a node to show it here"), egui::FontId::proportional(12.0), tk.viewport_text);
+    let Some((id, image)) = app.session.view2d_image().map(|(id, i)| (id, i.clone())) else {
+        let (r, response) = ui.allocate_exact_size(ui.available_size(), Sense::hover());
+        crate::widgets::name(&response, egui::Role::Image, "2D view");
+        ui.painter().rect_filled(r, 0.0, theme.viewport);
+        ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, tr("Click a node to show it here"), egui::FontId::proportional(12.0), theme.viewport_text);
         return;
     };
 
-    let texture_limit = ctx.input(|i| i.max_texture_side).max(1);
+    let texture_limit = context.input(|i| i.max_texture_side).max(1);
     let key = app.session.cooked.nodes.get(&id).map_or(0, |r| r.key)
         ^ (texture_limit as u64).rotate_left(32)
-        ^ (img.w as u64).rotate_left(16)
-        ^ img.h as u64
+        ^ (image.width() as u64).rotate_left(16)
+        ^ image.height() as u64
         ^ (app.session.view2d.port as u64).wrapping_mul(0x9e37)
         ^ (app.session.view2d.channel.len() as u64 * 31)
         ^ app.session.view2d.channel.bytes().next().unwrap_or(0) as u64;
     if app.view2d.tex.as_ref().is_none_or(|(k, _)| *k != key) {
-        let px = rgba8(&img, &app.session.view2d.channel);
+        let pixels = rgba8(&image, &app.session.view2d.channel);
 
         // Keep source pixels for readout/screenshots, but respect the renderer's upload limit
-        let ci = if img.w.max(img.h) as usize > texture_limit {
-            let scale = texture_limit as f64 / f64::from(img.w.max(img.h));
-            let display = img.resize((f64::from(img.w) * scale).floor().max(1.0) as u32, (f64::from(img.h) * scale).floor().max(1.0) as u32, false);
-            ColorImage::from_rgba_unmultiplied([display.w as usize, display.h as usize], &rgba8(&display, &app.session.view2d.channel))
+        let color_image = if image.width().max(image.height()) as usize > texture_limit {
+            let scale = texture_limit as f64 / f64::from(image.width().max(image.height()));
+            let display =
+                image.resize((f64::from(image.width()) * scale).floor().max(1.0) as u32, (f64::from(image.height()) * scale).floor().max(1.0) as u32, false);
+            ColorImage::from_rgba_unmultiplied([display.width() as usize, display.height() as usize], &rgba8(&display, &app.session.view2d.channel))
         } else {
-            ColorImage::from_rgba_unmultiplied([img.w as usize, img.h as usize], &px)
+            ColorImage::from_rgba_unmultiplied([image.width() as usize, image.height() as usize], &pixels)
         };
 
-        app.view2d.tex = Some((key, ctx.load_texture("view2d", ci, TextureOptions::NEAREST)));
-        app.view2d.shown = Some((img.w, img.h, px));
+        app.view2d.tex = Some((key, context.load_texture("view2d", color_image, TextureOptions::NEAREST)));
+        app.view2d.shown = Some((image.width(), image.height(), pixels));
     }
 
-    let avail = ui.available_size();
-    let (rect, resp) = ui.allocate_exact_size(vec2(avail.x, (avail.y - 20.0).max(40.0)), Sense::click_and_drag());
-    crate::widgets::name(&resp, egui::Role::Image, "2D view");
+    let available = ui.available_size();
+    let (rect, response) = ui.allocate_exact_size(vec2(available.x, (available.y - 20.0).max(40.0)), Sense::click_and_drag());
+    crate::widgets::name(&response, egui::Role::Image, "2D view");
     let p = ui.painter_at(rect);
-    p.rect_filled(rect, 0.0, tk.viewport);
+    p.rect_filled(rect, 0.0, theme.viewport);
 
     // Camera: fit, wheel zoom around the pointer, drag to pan
     app.ui.image_camera = app.ui.image_camera.sanitized();
-    let cam = &mut app.ui.image_camera;
+    let camera = &mut app.ui.image_camera;
     let tiles = if app.session.view2d.tiled { 3.0 } else { 1.0 };
-    let fit_zoom = ((rect.width() - 16.0) / (img.w as f32 * tiles)).min((rect.height() - 16.0) / (img.h as f32 * tiles)).max(0.01);
-    if cam.fit {
-        cam.zoom = fit_zoom;
-        cam.offset = [0.0, 0.0];
+    let fit_zoom = ((rect.width() - 16.0) / (image.width() as f32 * tiles)).min((rect.height() - 16.0) / (image.height() as f32 * tiles)).max(0.01);
+    if camera.fit {
+        camera.zoom = fit_zoom;
+        camera.offset = [0.0, 0.0];
     }
 
-    if resp.hovered() {
+    if response.hovered() {
         let scroll = ui.input(|i| i.smooth_scroll_delta.y);
         if scroll.abs() > 0.0 {
-            cam.fit = false;
-            let old = cam.zoom;
-            cam.zoom = (cam.zoom * (scroll * 0.003).exp()).clamp(0.02, 64.0);
-            if let Some(ptr) = resp.hover_pos() {
-                let c = rect.center() + vec2(cam.offset[0], cam.offset[1]);
+            camera.fit = false;
+            let old = camera.zoom;
+            camera.zoom = (camera.zoom * (scroll * 0.003).exp()).clamp(0.02, 64.0);
+            if let Some(ptr) = response.hover_pos() {
+                let c = rect.center() + vec2(camera.offset[0], camera.offset[1]);
                 let d = ptr - c;
-                let k = cam.zoom / old;
-                cam.offset = [cam.offset[0] - d.x * (k - 1.0), cam.offset[1] - d.y * (k - 1.0)];
+                let k = camera.zoom / old;
+                camera.offset = [camera.offset[0] - d.x * (k - 1.0), camera.offset[1] - d.y * (k - 1.0)];
             }
         }
     }
 
-    if resp.dragged() {
-        cam.fit = false;
-        let d = resp.drag_delta();
-        cam.offset = [cam.offset[0] + d.x, cam.offset[1] + d.y];
+    if response.dragged() {
+        camera.fit = false;
+        let d = response.drag_delta();
+        camera.offset = [camera.offset[0] + d.x, camera.offset[1] + d.y];
     }
 
-    let size = vec2(img.w as f32, img.h as f32) * cam.zoom;
-    let center = rect.center() + vec2(cam.offset[0], cam.offset[1]);
+    let size = vec2(image.width() as f32, image.height() as f32) * camera.zoom;
+    let center = rect.center() + vec2(camera.offset[0], camera.offset[1]);
     let full = Rect::from_center_size(center, size * tiles);
 
     // A checker behind transparent images
-    if img.kind == Kind::Color && app.session.view2d.channel == "rgba" {
+    if image.kind() == Kind::Color && app.session.view2d.channel == "rgba" {
         let cell = 8.0;
-        let vis = full.intersect(rect);
-        let mut y = vis.top();
+        let visible = full.intersect(rect);
+        let mut y = visible.top();
         let mut row = 0;
-        while y < vis.bottom() {
-            let mut x = vis.left() + if row % 2 == 0 { 0.0 } else { cell };
-            while x < vis.right() {
-                p.rect_filled(Rect::from_min_size(pos2(x, y), vec2(cell, cell)).intersect(vis), 0.0, Color32::from_gray(0x55));
+        while y < visible.bottom() {
+            let mut x = visible.left() + if row % 2 == 0 { 0.0 } else { cell };
+            while x < visible.right() {
+                p.rect_filled(Rect::from_min_size(pos2(x, y), vec2(cell, cell)).intersect(visible), 0.0, Color32::from_gray(0x55));
                 x += cell * 2.0;
             }
             y += cell;
@@ -188,26 +196,35 @@ pub fn show(app: &mut MaterialCraftApp, ui: &mut Ui) {
     }
 
     if app.session.view2d.histogram {
-        let single = img.is_gray() || app.session.view2d.channel != "rgba";
+        let single = image.is_gray() || app.session.view2d.channel != "rgba";
         draw_histogram(&mut app.view2d, &p, rect, key, single);
     }
 
     // Info line: size, format, zoom and the pixel under the pointer
     let info = Rect::from_min_size(pos2(rect.left(), rect.bottom()), vec2(rect.width(), 20.0));
     let bits = app.session.cooked.nodes.get(&id).map_or("16", |result| result.base.format.bits());
-    let mut text = format!("{} x {} ({}, {}bpc)   {:.0}%", img.w, img.h, if img.is_gray() { "L" } else { "RGBA" }, bits, cam.zoom * 100.0);
-    if let Some(ptr) = resp.hover_pos() {
-        let local = (ptr - (center - size * 0.5)) / cam.zoom;
+    let mut text =
+        format!("{} x {} ({}, {}bpc)   {:.0}%", image.width(), image.height(), if image.is_gray() { "L" } else { "RGBA" }, bits, camera.zoom * 100.0);
+    if let Some(ptr) = response.hover_pos() {
+        let local = (ptr - (center - size * 0.5)) / camera.zoom;
         let (x, y) = (local.x.floor() as i64, local.y.floor() as i64);
-        let v = img.get(x, y, true);
-        if img.is_gray() {
-            text += &format!("   ({}, {})  {:.3}", x.rem_euclid(img.w as i64), y.rem_euclid(img.h as i64), v[0]);
+        let v = image.get(x, y, true);
+        if image.is_gray() {
+            text += &format!("   ({}, {})  {:.3}", x.rem_euclid(image.width() as i64), y.rem_euclid(image.height() as i64), v[0]);
         } else {
-            text += &format!("   ({}, {})  {:.3} {:.3} {:.3} {:.3}", x.rem_euclid(img.w as i64), y.rem_euclid(img.h as i64), v[0], v[1], v[2], v[3]);
+            text += &format!(
+                "   ({}, {})  {:.3} {:.3} {:.3} {:.3}",
+                x.rem_euclid(image.width() as i64),
+                y.rem_euclid(image.height() as i64),
+                v[0],
+                v[1],
+                v[2],
+                v[3]
+            );
         }
     }
-    ui.painter().rect_filled(info, 0.0, tk.panel);
-    ui.painter().text(info.left_center() + vec2(6.0, 0.0), egui::Align2::LEFT_CENTER, text, egui::FontId::proportional(11.0), tk.text_dim);
+    ui.painter().rect_filled(info, 0.0, theme.panel);
+    ui.painter().text(info.left_center() + vec2(6.0, 0.0), egui::Align2::LEFT_CENTER, text, egui::FontId::proportional(11.0), theme.text_dim);
 }
 
 /// The histogram card in the view's bottom-right corner, computed once per shown image.

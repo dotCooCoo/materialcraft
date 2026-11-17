@@ -1,5 +1,5 @@
+use craft_texture::Image;
 use materialcraft_core::Value;
-use materialcraft_image::Image;
 use std::collections::BTreeMap;
 
 /// What to cook a portable material with, over the graph's own values

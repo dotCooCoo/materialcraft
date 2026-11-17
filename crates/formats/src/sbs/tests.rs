@@ -82,7 +82,7 @@ fn sample_package() -> Package {
     });
     pkg.graphs.push(graph);
 
-    let orange = materialcraft_image::Image::filled(4, 4, materialcraft_image::Kind::Color, [1.0, 0.5, 0.0, 1.0]);
+    let orange = craft_texture::Image::filled(4, 4, craft_texture::Kind::Color, [1.0, 0.5, 0.0, 1.0]);
     let png = crate::encode(&orange, "png", crate::Depth::U8, true).unwrap();
     pkg.resources.push(Resource::new("tex", "tex.png", ResourceBytes::new(png)));
     pkg
